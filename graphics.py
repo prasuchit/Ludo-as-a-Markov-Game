@@ -280,3 +280,4 @@ def drawBoard():
         blue[i].swap()
         green[i].swap()
         yellow[i].swap()                       #Population of all list is completed. Now game can begin
+    #################################################### THE END ##########################################################
