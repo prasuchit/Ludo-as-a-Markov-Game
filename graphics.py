@@ -22,7 +22,7 @@ def initBoard(width = None, height = None, geometry = None, background = None, t
     root.geometry(geometry)
     root.configure(background=background)
     root.title(title)
-    with open("logos.txt") as f:
+    with open(filename) as f:
         logo = f.readlines()
         # you may also want to remove whitespace characters like `\n` at the end of each line
         logo = [x.strip() for x in logo]
