@@ -17,10 +17,6 @@ BLUE = graphics.BLUE
 YELLOW = graphics.YELLOW
 GREEN = graphics.GREEN
 PLAYER_NAMES = ["Red", "Blue", "Yellow", "Green"] #Strings for each player's name.
-# RED = True
-# BLUE = False
-# GREEN = False
-# YELLOW = False
 whose = RED #The player whose turn it is. Can be adjusted later to choose a new player to go first.
 rolled = False #Originally "TURN." This variable tracks if the rolls for a given player have finished.
 # TURN = True
@@ -73,71 +69,78 @@ def playTurn():
                 if ((((cx > players[whose][i].x0 + 13) and (cx < players[whose][i].x + 13)) and #Home spots.
                 ((cy > players[whose][i].y0 + 14) and (cy < players[whose][i].y + 14))) and
                 (players[whose][i].x0 == homes[whose][i].x) and (players[whose][i].y0 == homes[whose][i].y)):
+                    print("Player at home.")
                     if rolls[0 + nc] == 6: #If there's a 6 and a piece at home...
                         #^ THIS PART MAY BE ANOTHER ISSUE WITH THE ORIGINAL CODE.
-                        players[whose][i].x0 = cboxes[whose][0].x
-                        players[whose][i].y0 = cboxes[whose][0].y
-                        players[whose][i].x = cboxes[whose][0].x + 25
-                        players[whose][i].y = cboxes[whose][0].y + 25
-                        players[whose][i].num = 0
-                        players[whose][i].swap()
+                        movePiece(i, 0)
                         nc = nc + 1
                         
-                        if nc > len(rolls) or rolls[nc] == 0: #Checks if all rolls have been used. If so, pass the turn.
+                        if nc >= len(rolls) or rolls[nc] == 0: #Checks if all rolls have been used. If so, pass the turn.
                             passTurn()
                             
-                #This next part has to be added in, because what bounds are used depends on which player's turn it is.
-                winx0 = (270 if (whose == RED or whose == BLUE) else 470)
-                winy0 = (270 if (whose == RED) else 470) #The source code has 3 470s. Is this a bug? Keeping the same for now.
+                #This is a point of divergence between the colors--the coordinates for the last if-clause.
+                #As a result, a new function has to be made that handles the rest of the logic that follows here.
                 
-                if ((((cx > players[whose][i].x0 + 13) and (cx < players[whose][i].x + 13)) and ( 
-                            (cy > players[whose][i].y0 + 14) and (cy < players[whose][i].y + 14)))
-                            and ((players[whose][i].x0 > winx0) or (players[whose][i].y0 > winy0))):
-                    bb = ((players[whose][i].num) + rolls[0 + nc]) #bb here is the number of spaces traversed.
+                if (((cx > players[whose][i].x0 + 13) and (cx < players[whose][i].x + 13)) and 
+                    ((cy > players[whose][i].y0 + 14) and (cy < players[whose][i].y + 14))):
+                    #We need a flag to check if the move can actually be made for the given player.
+                    validMove = False
+                    #Red check.
+                    if (whose == RED) and (players[whose][i].x0 > 270 or players[whose][i].y0 > 270):
+                        validMove = True
+                    elif (whose == BLUE) and (players[whose][i].x0 > 270 or players[whose][i].y0 < 470):
+                        validMove = True
+                    elif (whose == YELLOW) and (players[whose][i].x0 < 470 or players[whose][i].y0 < 470):
+                        validMove = True
+                    elif (whose == GREEN) and (players[whose][i].x0 < 470 or players[whose][i].y0 < 470):
+                        validMove = True #Yellow and green's check are the same. Is this intended behavior?
                     
-                    if bb > 57:
-                        break #Can't move greater than the allowed number of spaces.
+                    #If the last if-clause is satisfied for the given player, we can move on with the rest.
                     
-                #These variables will shorten the notation for the kill call.
-                nex = (whose + 1) % 4 #The player after the current one. ("next" is a keyword.)
-                after = (whose + 2) % 4 #The player after that.
-                last = (whose + 3) % 4 #The last player in the line.
-                kill(cboxes[whose], players[nex], players[after], players[last], homes[nex], homes[after], homes[last])
-                
-                players[whose][i].x0 = cboxes[whose][bb].x
-                players[whose][i].y0 = cboxes[whose][bb].y
-                players[whose][i].x = cboxes[whose][bb].x + 25
-                players[whose][i].y = cboxes[whose][bb].y + 25
-                players[whose][i].swap()
-                players[whose][i].num = bb
-                doublecheck(players[whose]) #Check to see if a piece can be made a double.
-                
-                nc = nc + 1
-                
-                if bb == 57: #If a piece went all the way, it's gone.
-                    players[whose].remove(players[whose][i])
-                    
-                if nc > len(rolls) or rolls[nc] == 0:
-                    passTurn()
-                break
+                    if (validMove):
+                        print("Player somewhere else.")
+                        bb = ((players[whose][i].num) + rolls[0 + nc]) #bb here is the number of spaces traversed.
+                        
+                        if bb > 57:
+                            break #Can't move greater than the allowed number of spaces.
+                        
+                        #These variables will shorten the notation for the kill call.
+                        nex = (whose + 1) % 4 #The player after the current one. ("next" is a keyword.)
+                        after = (whose + 2) % 4 #The player after that.
+                        last = (whose + 3) % 4 #The last player in the line.
+                        kill(cboxes[whose], players[nex], players[after], players[last], homes[nex], homes[after], homes[last])
+                        
+                        movePiece(i, bb)
+                        doublecheck(players[whose]) #Check to see if a piece can be made a double.
+                        
+                        nc = nc + 1
+                        
+                        if bb == 57: #If a piece went all the way, it's gone.
+                            players[whose].remove(players[whose][i])
+                        
+                        if nc >= len(rolls) or rolls[nc] == 0: #Checks if all rolls have been used. If so, pass the turn.
+                            passTurn()
+                        break
+
+def movePiece(whichPiece, whereTo):
+    global players, cboxes, whose
+    
+    players[whose][whichPiece].x0 = cboxes[whose][whereTo].x
+    players[whose][whichPiece].y0 = cboxes[whose][whereTo].y
+    players[whose][whichPiece].x = cboxes[whose][whereTo].x + 25
+    players[whose][whichPiece].y = cboxes[whose][whereTo].y + 25
+    players[whose][whichPiece].num = whereTo
+    players[whose][whichPiece].swap()
                 
 def movecheck(player, pbox, pname): #Check if the player can make a move (originally included homes, but was never used).
     if rolls[2] == 6: #If the third die rolled a 6, so did the first two. Three 6's means the turn ends.
         return False
-    
-#     if (dice == 6 and dice1 == 6 and dice2 == 6):
-#         return False
     
     win = True #Check if the game is won.
     for i in range(4):
         if (player[i].x0 != pbox[56].x) or (player[i].y0 != pbox[56].y): #Checks if a piece is at the goal.
             win = False
             i = 5 #Saves time, why not?
-
-#     win=True                                                  #Checking if the game is won or the player can make any moves.
-#     for j in range(4):
-#         if (r[j].x0 != rb[56].x) and (r[j].y0 != rb[56].y):
-#              win=False
 
     if win == True: #Maybe remove the console information here, too.
         print("YOU HAVE WON")
@@ -173,7 +176,6 @@ def passTurn():
     L3.place(x=800, y=250)
     L4 = Label(root, text="        ", fg='Black', background='green', font=("Arial", 24, "bold"))
     L4.place(x=800, y=300)
-    print("cleared")
     turn(whose)
     
 #Prints the given player's turn (let's cut this down).
@@ -246,22 +248,6 @@ def leftClick(event):  # Main play function is called on every left click.
 
 
 root.bind("<Button-1>", leftClick)
-
-#     if RED == True:
-#         L2 = Label(root, text="   Red's Turn    ", fg='Black', background='red', font=("Arial", 24, "bold"))
-#         L2.place(x=770, y=50)
-# 
-#     if BLUE == True:
-#         L2 = Label(root, text="   Blue's Turn   ", fg='Black', background='blue', font=("Arial", 24, "bold"))
-#         L2.place(x=770, y=50)
-# 
-#     if GREEN == True:
-#         L2 = Label(root, text="Green's Turn  ", fg='Black', background='green', font=("Arial", 24, "bold"))
-#         L2.place(x=770, y=50)
-# 
-#     if YELLOW == True:
-#         L2 = Label(root, text="Yellow's Turn", fg='Black', background='yellow', font=("Arial", 24, "bold"))
-#         L2.place(x=770, y=50)
 
 
 def roll():   #Rolls a die, and repeats if it's a 6.
