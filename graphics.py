@@ -211,6 +211,7 @@ def drawBoard():
         cboxes[RED][lx].x = (0 + (50 * i))
         cboxes[RED][lx].y = 350
         lx = lx + 1
+        
     #Blue.
     lx = 1
     for i in range(52):
@@ -256,10 +257,12 @@ def drawBoard():
     for i in range(7):
         cboxes[GREEN][lx].x = 350
         cboxes[GREEN][lx].y = (0 + (50 * i))
-
+        lx = lx + 1
+    
+    #With the placement determined, actually draw the pieces on the board.
     for i in range(4):
         players[RED][i].swap()
         players[BLUE][i].swap()
         players[GREEN][i].swap()
-        players[YELLOW][i].swap()                       #Population of all list is completed. Now game can begin
+        players[YELLOW][i].swap()
     #################################################### THE END ##########################################################
