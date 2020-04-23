@@ -24,6 +24,7 @@ RED=0
 BLUE=1
 YELLOW=2
 GREEN=3
+
 #############################################################################################################################
 def initBoard(width = None, height = None, geometry = None, background = None, title = None, filename = None):
     root.resizable(width=width, height=height)  # The window size of the game.
