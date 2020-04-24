@@ -47,7 +47,7 @@ def initBoard(width = None, height = None, geometry = None, background = None, t
     Label(image= logodict.get("yellowside"), width=294, height=294).place(x=(450), y=(450))
     Label(image= logodict.get("center"), width=150, height=150).place(x=(298), y=(298))
     
-    tkmb.showinfo(title=None, message="TO START GAME PRESS OKAY & TO EXIT PRESS CROSS UP IN THE WINDOW")
+    #tkmb.showinfo(title=None, message="TO START GAME PRESS OKAY & TO EXIT PRESS CROSS UP IN THE WINDOW")
     v = 0
     z = 0
     # start = [0,50,100,250,300,350,400,450,600,650]

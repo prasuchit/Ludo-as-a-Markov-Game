@@ -1,7 +1,7 @@
 import graphics
 import random
 from time import sleep
-from tkinter import Button, Label, PhotoImage
+from tkinter import Button, Label, PhotoImage, simpledialog
 
 c = 0                              #initializing variable and flags that are to be used in the game
 cx = 0
@@ -10,32 +10,32 @@ lx = 0
 bb = 0
 nc = 0
 rollc = 0
-#
+
 RED = graphics.RED
 BLUE = graphics.BLUE
 YELLOW = graphics.YELLOW
 GREEN = graphics.GREEN
 PLAYER_NAMES = ["Red", "Blue", "Yellow", "Green"] #Strings for each player's name.
 whose = RED #The player whose turn it is. Can be adjusted later to choose a new player to go first.
-rolled = False #Originally "TURN." This variable tracks if the rolls for a given player have finished.
-# TURN = True
+rolled = False #Originally "TURN." Tracks if the rolls for a given player have finished.
 box = 0
 cboxes = 0
 homes = 0
 players = 0
-REDKILL = False
-BLUEKILL = False
-GREENKILL = False
-YELLOWKILL = False
+# REDKILL = False
+# BLUEKILL = False
+# GREENKILL = False
+# YELLOWKILL = False
+
+#What type of player is playing for each color: a human, a random player, or a rational agent.
+playerTypes = []
+HUMAN = 0
+RANDOM = 1
+RATIONAL = 2
 
 done = False #Checks if the game is over. The game ends when someone wins.
 
-#won = [False, False, False, False] #Checks if a player has won or not.
-
 rolls = [0, 0, 0] #The rolls of each die.
-# dice = 0
-# dice1 = 0
-# dice2 = 0
 
 root = graphics.root
 # Creating a photoimage object to use image 
@@ -49,24 +49,52 @@ sides = [PhotoImage(file = r"die1.gif"),
          PhotoImage(file = r"die5.gif"),
          PhotoImage(file = r"die6.gif")]
 
+#Prints the given player's turn.
+def turn():
+    L2 = Label(root, text= PLAYER_NAMES[whose] + "'s Turn    ", fg='Black', 
+               background= PLAYER_NAMES[whose].lower(), font=("Arial", 24, "bold"))
+    L2.place(x=770, y=50)
+
 def main():                                 # Main game function.
-    global box, cboxes, homes, players
+    global box, cboxes, homes, players, playerTypes, whose
     if c == 0:                              #constructs the game pieces first time the code is ran.
 
-        graphics.initBoard(False, False, '1000x750', 'green', "Ludo as an MDP", "logos.txt")
+        graphics.initBoard(False, False, '1000x750', 'green', "Ludo as a Markov Game", "logos.txt")
         graphics.drawBoard()
         #These variables are ported over from the graphics module to shorten notation.
         box = graphics.box
         cboxes = graphics.cboxes
         homes = graphics.homes
         players = graphics.players
+        #The user is then asked to give a mixture humans versus computers.
+        humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
+        randoms = 0 #Scopes are going to be the death of me.
+        rationals = 0
+        #If there are any computers participating, the user is asked how many of those computers are to be random players.
+        if humans < 4:
+            randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
+                                             parent=root, minvalue=0, maxvalue=(4 - humans))
+            rationals = 4 - humans - randoms
+        #With the split of players decided, they are now distributed to the playertypes list.
+        for _ in range(humans):
+            playerTypes.append(HUMAN)
+        for _ in range(randoms):
+            playerTypes.append(RANDOM)
+        for _ in range(rationals):
+            playerTypes.append(rationals)
+        #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
+        
+        #Last thing to do is decide who goes first.
+        whose = random.randint(0,3)
+        turn()    
 
     elif not done:
-        while not done:
-            #Can't sleep through all this if the agent type is not homogeneous.
-            aRandomTurn()
-            sleep(.1)
-            root.update()
+        #What turn we take depends on the type of player at hand.
+        #The non-human players can go automatically.
+        aTurns()
+        #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
+        playTurn()
+        
 
 main()    #Main function is called once when c==0 to initialize all the gamepieces.
 
@@ -80,6 +108,7 @@ def playTurn():
         
         if (movecheck(players[whose], cboxes[whose], PLAYER_NAMES[whose])) == False: #If no move is available, pass the turn.
             passTurn()
+            #This has to get added whenever the turn is passed, in case the next player is an AI.
         else: #Check for a click on a player's own game piece.
             for i in range(len(players[whose])):
                 if ((((cx > players[whose][i].x0 + 13) and (cx < players[whose][i].x + 13)) and #Home spots.
@@ -192,13 +221,7 @@ def passTurn():
     L3.place(x=800, y=250)
     L4 = Label(root, text="        ", fg='Black', background='green', font=("Arial", 48, "bold"))
     L4.place(x=800, y=300)
-    turn(whose)
-    
-#Prints the given player's turn (let's cut this down).
-def turn(whose):
-    L2 = Label(root, text= PLAYER_NAMES[whose] + "'s Turn    ", fg='Black', 
-               background= PLAYER_NAMES[whose].lower(), font=("Arial", 24, "bold"))
-    L2.place(x=770, y=50)
+    turn()
 
 def kill(a,b,c,d,bh,ch,dh):   #function that determines if a gamepiece can be killed
 
@@ -309,7 +332,6 @@ def roll():   #Rolls a die, and repeats if it's a 6.
 #New non-agent functions!!!
 
 #Checks if the given piece has reached the goal.
-
 def goalCheck(piece):
     if players[whose][piece].num == 56: #If a piece went all the way, it's gone.
         players[whose].remove(players[whose][piece])
@@ -318,10 +340,13 @@ def goalCheck(piece):
 
 def winCheck():
     global done
-    if not players[whose]:
+    if not players[whose]: #If a player has no pieces left, they all reached the goal.
         done = True
-        print("All of " + PLAYER_NAMES[whose] + " player's pieces have reached the goal. They have won!")
-        #TODO Change to something nicer? ^
+        clear() #Still has its use outside of passTurn().
+        L1 = Label(root, text= PLAYER_NAMES[whose] + " Wins!    ", fg='Black', 
+        background= PLAYER_NAMES[whose].lower(), font=("Arial", 24, "bold"))
+        L1.place(x=770, y=200)
+        
 
 #Rolls all the dice one can for their turn.
 def rollDice():
@@ -335,10 +360,10 @@ def getValidMoves():
     for i in range(len(players[whose])):
         spot = players[whose][i].num #The current piece's position.
         #If the given piece is at home and the roll is a 6, that piece can move.
-        if spot == -1 and rolls[nc] == 6: #and not isBlocked(True, i)
+        if spot == -1 and rolls[nc] == 6 and not isBlocked(True, i): #
             validIndices.append(i)
         #Otherwise, if the player isn't at home and the roll wouldn't overshoot the goal, that piece can move.
-        elif spot > -1 and ((spot + rolls[nc]) <= 56): #and not isBlocked(False, i)
+        elif spot > -1 and ((spot + rolls[nc]) <= 56) and not isBlocked(False, i): #
             validIndices.append(i)
             
     return validIndices
@@ -352,7 +377,7 @@ def isBlocked(atHome, which):
         for j in range(len(players[otherTurn]) - 1):
             otherSpot = players[otherTurn][j].num
             #Only need to check the piece if it's a double and on the outer ring.
-            if players[otherTurn][j].double and otherSpot <= 50:
+            if players[otherTurn][j].double and otherSpot >= 0 and otherSpot <= 50:
                 relativeSpot = ((otherSpot + (3 - i) * 13) % 50) #Other player's spot from the current player's perspective.
                 #If the spot is at home, only the starting spot needs to be checked.
                 if atHome and relativeSpot == 0:
@@ -377,9 +402,10 @@ def clear():        #clears all the variable prior to next player's turn
     L3.place(x=800, y=250)
     L4 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
     L4.place(x=800, y=300)
-    turn()
+    if not done:
+        turn()
 
-turn(whose)            #prints "Red's turn" initially
+turn()            #prints "Red's turn" initially
 
 button = Button(root, text="    Roll    ", image = dice, relief="raised", font=("Arial", 20),  command=roll)  # call roll function evertime this button is clicked
 button.place(x=835, y=120)
@@ -387,7 +413,17 @@ button.place(x=835, y=120)
 #-----Agent functions, behavior, and so on!-----
 #All functions for agent behavior will be prefixed with an "a" to make it easy to differentiate.
 
-#The current agent takes their turn.
+#All AI players take their turns.
+def aTurns():
+    while playerTypes[whose] != HUMAN and not done:
+        sleep(.1)
+        if playerTypes[whose] == RANDOM:
+            aRandomTurn()
+        else:
+            aSmartTurn()
+        root.update()
+
+#The current random agent takes their turn.
 def aRandomTurn():
     global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc
     
@@ -434,5 +470,9 @@ def aRandomTurn():
     #If the game isn't over, pass the turn.
     if not done:
         passTurn()
+
+#The current rational agent takes their turn.          
+def aSmartTurn():
+    pass
 
 root.mainloop()
