@@ -81,7 +81,7 @@ def main():                                 # Main game function.
         for _ in range(randoms):
             playerTypes.append(RANDOM)
         for _ in range(rationals):
-            playerTypes.append(rationals)
+            playerTypes.append(RATIONAL)
         #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
         
         #Last thing to do is decide who goes first.
@@ -93,7 +93,8 @@ def main():                                 # Main game function.
         #The non-human players can go automatically.
         aTurns()
         #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
-        playTurn()
+        if not done:
+            playTurn()
         
 
 main()    #Main function is called once when c==0 to initialize all the gamepieces.
@@ -343,7 +344,7 @@ def winCheck():
     if not players[whose]: #If a player has no pieces left, they all reached the goal.
         done = True
         clear() #Still has its use outside of passTurn().
-        L1 = Label(root, text= PLAYER_NAMES[whose] + " Wins!    ", fg='Black', 
+        L1 = Label(root, text= PLAYER_NAMES[whose] + " Wins!             ", fg='Black', 
         background= PLAYER_NAMES[whose].lower(), font=("Arial", 24, "bold"))
         L1.place(x=770, y=200)
         
@@ -360,10 +361,10 @@ def getValidMoves():
     for i in range(len(players[whose])):
         spot = players[whose][i].num #The current piece's position.
         #If the given piece is at home and the roll is a 6, that piece can move.
-        if spot == -1 and rolls[nc] == 6 and not isBlocked(True, i): #
+        if spot == -1 and rolls[nc] == 6 and not isBlocked(True, i):
             validIndices.append(i)
         #Otherwise, if the player isn't at home and the roll wouldn't overshoot the goal, that piece can move.
-        elif spot > -1 and ((spot + rolls[nc]) <= 56) and not isBlocked(False, i): #
+        elif spot > -1 and ((spot + rolls[nc]) <= 56) and not isBlocked(False, i):
             validIndices.append(i)
             
     return validIndices
@@ -420,7 +421,7 @@ def aTurns():
         if playerTypes[whose] == RANDOM:
             aRandomTurn()
         else:
-            aSmartTurn()
+            aRationalTurn()
         root.update()
 
 #The current random agent takes their turn.
@@ -472,7 +473,7 @@ def aRandomTurn():
         passTurn()
 
 #The current rational agent takes their turn.          
-def aSmartTurn():
+def aRationalTurn():
     pass
 
 root.mainloop()
