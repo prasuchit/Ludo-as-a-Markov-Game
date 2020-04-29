@@ -1,0 +1,4 @@
+https://github.com/koenboeckx/Minimax-Q/blob/master/littman_soccer.ipynb
+https://www.youtube.com/watch?v=XrxgdpduWOU
+https://medium.com/@curiousily/solving-an-mdp-with-q-learning-from-scratch-deep-reinforcement-learning-for-hackers-part-1-45d1d360c120
+https://www.varsitytutors.com/hotmath/hotmath_help/topics/linear-programming

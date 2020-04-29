@@ -42,31 +42,38 @@ class MinimaxQPlayer:
         self.alpha *= self.decay
 
     def updatePolicy(self, state, retry=False):
-        c = np.zeros(self.numActionsA + 1)
-        c[0] = -1
-        A_ub = np.ones((self.numActionsB, self.numActionsA + 1))  # I believe this should be (numPlayers, numActionsA + 1)
-        A_ub[:, 1:] = -self.Q[state].T
-        b_ub = np.zeros(self.numActionsB)
-        A_eq = np.ones((1, self.numActionsA + 1))
-        A_eq[0, 0] = 0
-        b_eq = [1]
-        bounds = ((None, None),) + ((0, 1),) * self.numActionsA
+        # c = np.zeros(self.numActionsA + 1)
+        # c[0] = -1
+        # # c = [-1,-1,-1]
+        # A_ub = np.ones((self.numActionsB, self.numActionsA + 1))  # I believe this should be (numPlayers, numActionsA + 1)
+        # A_ub[:, 1:] = -self.Q[state].T
+        # b_ub = np.zeros(self.numActionsB)
+        # A_eq = np.ones((1, self.numActionsA + 1))
+        # A_eq[0, 0] = 0
+        # b_eq = [1]
+        # bounds = ((None, None),) + ((0, 1),) * self.numActionsA
 
-        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+        # res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
 
-        # arr = [self.weightedActionChoice(state),max(np.sum(self.Q[state].T * self.pi[state], axis=1))]
-        # self.pi[state] = arr[np.argmax(arr)]
-
-        if res.success:
-            print("Policy updated with (state,action): ",state, ",", res.x[1:])
-            self.pi[state] = res.x[1:]
+        if True:
+            Qtranspose = self.Q[state].T
+            newtemp = Qtranspose * self.pi[state]
+            thissum = np.sum(newtemp, axis=1)
+            minthissum = min(thissum)
+            arr = [self.pi[state],minthissum]
+            temp = np.argmax(arr)
+            act = arr[temp]
+            self.pi[state] = act    
+        # if res.success:
+        #     print("Policy updated with (state,action): ",state, ",", res.x[1:])
+        #     self.pi[state] = res.x[1:]
         elif not retry:
             return self.updatePolicy(state, retry=True)
-        else:
-            print("Alert : %s" % res.message)
-            return self.V[state]
-        print("Returning state value: ", res.x[0])
-        return res.x[0]
+        # else:
+        #     print("Alert : %s" % res.message)
+        #     return self.V[state]
+        # print("Returning state value: ", res.x[0])
+        # return res.x[0]
 
     def policyForState(self, state):
         for i in range(self.numActionsA):
