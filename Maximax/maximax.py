@@ -1,6 +1,6 @@
 import numpy as np
 import math as m
-def maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth = 0, maxDepth = 3):  # Q table is a nS*24*24*24*24 table 
+def maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth = -1, maxDepth = 3):  # Q table is a nS*24*24*24*24 table 
     # Q[playerNumber, state, actions, reactions, reactions, reactions]
     ########################################################################################################
     # NOTE: 
@@ -31,7 +31,7 @@ def maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth = 0,
         #       newtempmaxat = functioncall(state[i])
         # else 
         actionMaxAt = maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth)
-        # Checking if the lowest lvl corresponds to player 0
+        # Checking if the current lvl corresponds to player 0
         if(playerList[currentDepth] == 0): 
             for aNum in range(len(actionMaxAt)):
                 temp = modifiedQtable[playerList[currentDepth],stateNum, actionMaxAt[aNum][0], :, :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -41,7 +41,7 @@ def maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth = 0,
             actionMaxAt = tempMaxAt
             return actionMaxAt
 
-        # Checking if the lowest lvl corresponds to player 1
+        # Checking if the current lvl corresponds to player 1
         if(playerList[currentDepth] == 1):  
             for aNum in range(len(actionMaxAt)):
                 temp = modifiedQtable[playerList[currentDepth],stateNum, :, actionMaxAt[aNum][1], :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -51,43 +51,45 @@ def maximax(stateNum, playerList, modifiedQtable, actionMaxAt, currentDepth = 0,
             actionMaxAt = tempMaxAt
             return actionMaxAt
         
-        # Checking if the lowest lvl corresponds to player 2
+        # Checking if the current lvl corresponds to player 2
         if(playerList[currentDepth] == 2):  
             for aNum in range(len(actionMaxAt)):
                 temp = modifiedQtable[playerList[currentDepth],stateNum, :, :, actionMaxAt[aNum][2], :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                 k = aNum    # Copying the index value of that action
                 i,j,l = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                actionMaxAt.append([i,j,k,l])
                 tempMaxAt.append([i,j,k,l])
             actionMaxAt = tempMaxAt
             return actionMaxAt
 
-        # Checking if the lowest lvl corresponds to player 3
+        # Checking if the current lvl corresponds to player 3
         if(playerList[currentDepth] == 3):  
             for aNum in range(len(actionMaxAt)):
                 temp = modifiedQtable[playerList[currentDepth],stateNum, :, :, :, actionMaxAt[aNum][3]] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                 l = aNum    # Copying the index value of that action
                 i,j,k = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                actionMaxAt.append([i,j,k,l])
                 tempMaxAt.append([i,j,k,l])
             actionMaxAt = tempMaxAt
             return actionMaxAt 
 
-def modifiedQtable(Qtable, stateNum, totalActions, validActions, currentPlayer):
+# def maxTree(currentPlayer,validActions,stateList):
+
+def modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList):
     # Obtain original Q table, extract invalid actions from valid actions and mark all
     # fields corresponding to invalid actions in Q table as -inf
+    currentPlayer = playerList[0]
     modifiedQtable = Qtable
     invalidActions =  set(totalActions) ^ set(validActions)
-    for i in invalidActions:
-        if currentPlayer == 0:
-            modifiedQtable[currentPlayer, stateNum, i, :, :, :] = -m.inf
-        elif currentPlayer == 1:
-            modifiedQtable[currentPlayer, stateNum, :, i, :, :] = -m.inf
-        elif currentPlayer == 2:
-            modifiedQtable[currentPlayer, stateNum, :, :, i, :] = -m.inf
-        elif currentPlayer == 3:
-            modifiedQtable[currentPlayer, stateNum, :, :, :, i] = -m.inf
-        else: print("Player number input is incorrect!")
+    for i in range(len(playerList)):
+        for j in invalidActions:
+            if currentPlayer == 0:
+                modifiedQtable[playerList[i], stateNum, j, :, :, :] = -m.inf
+            elif currentPlayer == 1:
+                modifiedQtable[playerList[i], stateNum, :, j, :, :] = -m.inf
+            elif currentPlayer == 2:
+                modifiedQtable[playerList[i], stateNum, :, :, j, :] = -m.inf
+            elif currentPlayer == 3:
+                modifiedQtable[playerList[i], stateNum, :, :, :, j] = -m.inf
+            else: print("Player number input is incorrect!")
 
     return modifiedQtable
 
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     Qtable = np.random.rand(nPlayers, nStates, nActions, nActions, nActions, nActions)
     playerList = [0,0,0,0]
     totalActions = [i for i in range(24)]
-    currentPlayer = 2   # Player indices are 0,1,2,3 (A corresponding color for each index: to be assigned)
+    currentPlayer = 0   # Player indices are 0,1,2,3 (A corresponding color for each index: to be assigned)
     # change current player value according to turn and playerList will populate players in the order of turns
     validActions = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
     for i in range(4):
@@ -107,7 +109,7 @@ if __name__ == "__main__":
         else:
             playerList[i] = (currentPlayer + i) - 4
     stateNum = 0
-    modifiedQtable = modifiedQtable(Qtable, stateNum, totalActions, validActions, currentPlayer)
+    modifiedQtable = modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList)
     actionsMaxAt = [[i,i,i,i] for i in range(24)]
-    actionMaxAt = maximax(0, playerList, modifiedQtable, actionsMaxAt,0,3)  # Returns a list of index values where that player has max Q value for that action
-    print(modifiedQtable[2,0,actionMaxAt[0][0],actionMaxAt[0][1],actionMaxAt[0][2],actionMaxAt[0][3]])
+    actionMaxAt = maximax(0, playerList, modifiedQtable, actionsMaxAt,-1,3)  # Returns a list of index values where that player has max Q value for that action
+    print(modifiedQtable[0,0,actionMaxAt[0][0],actionMaxAt[0][1],actionMaxAt[0][2],actionMaxAt[0][3]])
