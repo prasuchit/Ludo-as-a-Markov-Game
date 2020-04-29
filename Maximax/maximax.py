@@ -65,9 +65,11 @@ def maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, curre
                     tempMaxAt.append([i,j,k,l])
                 actionMaxAt = tempMaxAt
                 return actionMaxAt 
-
+                
+################################### EVAN ###################################################
 def getNextStatesForActions(currentPlayer, stateNum):
     return [0]
+############################################################################################
 
 def modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList):
     # Obtain original Q table, extract invalid actions from valid actions and mark all
