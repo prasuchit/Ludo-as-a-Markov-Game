@@ -1,6 +1,8 @@
 import numpy as np
 import math as m
-def maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = -1, maxDepth = 3):  # Q table is a nS*24*24*24*24 table 
+import random
+from scipy._lib.six import xrange
+def maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = -1, maxDepth = 3, coinPositions = []):  # Q table is a nS*24*24*24*24 table 
     # Q[playerNumber, state, actions, reactions, reactions, reactions]
     ########################################################################################################
     # NOTE: 
@@ -17,57 +19,78 @@ def maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, curre
     # from and possibly making him suboptimal inturn. 
     # IDK how to work this out right now. To be checked later.
     ########################################################################################################
-    tempMaxAt = []
-    
+    eachActionQMaxAt = []
+    maxQ = -m.inf
     currentDepth += 1
     if currentDepth == maxDepth+1:  # Base case
         return actionMaxAt
     else:
-        nextStates = getNextStatesForActions(playerList[currentDepth], stateNum)
+        nextStates = getNextStatesForActions(playerList[currentDepth], coinPositions)
         for stateNum in nextStates:
-            actionMaxAt = maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth)
+            actionMaxAt = maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth, coinPositions)
+            allActionsMaxQ = -m.inf
             # Checking if the current lvl corresponds to player 0
             if(playerList[currentDepth] == 0): 
                 for aNum in range(len(actionMaxAt)):
-                    temp = modifiedQtable[playerList[currentDepth],stateNum, actionMaxAt[aNum][0], :, :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
+                    eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, actionMaxAt[aNum][0], :, :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     i = aNum    # Copying the index value of that action
-                    j,k,l = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                    tempMaxAt.append([i,j,k,l])
-                actionMaxAt = tempMaxAt
-                return actionMaxAt
+                    j,k,l = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
+                    eachActionQMaxAt.append([i,j,k,l])
+                    if(eachActionQ.argmax() > allActionsMaxQ):
+                        allActionsMaxQ = eachActionQ.argmax()
+                if(allActionsMaxQ > maxQ):
+                    tempactionMaxAt = eachActionQMaxAt    # I use a temp var here to copy the max actionslist because I don't want to replace the actionsMaxAt 
+                                                          # being used within the for loop before moving to the previous recursion level         
+                    return tempactionMaxAt
+                else: return actionMaxAt    # I return this because I receive the func call returned into actionMaxAt var and so must return something
 
             # Checking if the current lvl corresponds to player 1
             if(playerList[currentDepth] == 1):  
                 for aNum in range(len(actionMaxAt)):
-                    temp = modifiedQtable[playerList[currentDepth],stateNum, :, actionMaxAt[aNum][1], :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
+                    eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, actionMaxAt[aNum][1], :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     j = aNum    # Copying the index value of that action
-                    i,k,l = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                    tempMaxAt.append([i,j,k,l])
-                actionMaxAt = tempMaxAt
-                return actionMaxAt
+                    i,k,l = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
+                    eachActionQMaxAt.append([i,j,k,l])
+                    if(eachActionQ.argmax() > allActionsMaxQ):
+                        allActionsMaxQ = eachActionQ.argmax()
+                if(allActionsMaxQ > maxQ):
+                    tempactionMaxAt = eachActionQMaxAt    # I use a temp var here to copy the max actionslist because I don't want to replace the actionsMaxAt
+                    maxQ = allActionsMaxQ                 # being used within the for loop before moving to the previous recursion level
+                    return tempactionMaxAt
+                else: return actionMaxAt    # I return this because I receive the func call returned into actionMaxAt var and so must return something
             
             # Checking if the current lvl corresponds to player 2
             if(playerList[currentDepth] == 2):  
                 for aNum in range(len(actionMaxAt)):
-                    temp = modifiedQtable[playerList[currentDepth],stateNum, :, :, actionMaxAt[aNum][2], :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
+                    eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, actionMaxAt[aNum][2], :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     k = aNum    # Copying the index value of that action
-                    i,j,l = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                    tempMaxAt.append([i,j,k,l])
-                actionMaxAt = tempMaxAt
-                return actionMaxAt
+                    i,j,l = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
+                    eachActionQMaxAt.append([i,j,k,l])
+                    if(eachActionQ.argmax() > allActionsMaxQ):
+                        allActionsMaxQ = eachActionQ.argmax()
+                if(allActionsMaxQ > maxQ):
+                    tempactionMaxAt = eachActionQMaxAt    # I use a temp var here to copy the max actionslist because I don't want to replace the actionsMaxAt 
+                    maxQ = allActionsMaxQ                 # being used within the for loop before moving to the previous recursion level
+                    return tempactionMaxAt
+                else: return actionMaxAt    # I return this because I receive the func call returned into actionMaxAt var and so must return something
 
             # Checking if the current lvl corresponds to player 3
             if(playerList[currentDepth] == 3):  
                 for aNum in range(len(actionMaxAt)):
-                    temp = modifiedQtable[playerList[currentDepth],stateNum, :, :, :, actionMaxAt[aNum][3]] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
+                    eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, :, actionMaxAt[aNum][3]] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     l = aNum    # Copying the index value of that action
-                    i,j,k = np.unravel_index(temp.argmax(), temp.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                    tempMaxAt.append([i,j,k,l])
-                actionMaxAt = tempMaxAt
-                return actionMaxAt 
+                    i,j,k = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
+                    eachActionQMaxAt.append([i,j,k,l])
+                    if(eachActionQ.argmax() > allActionsMaxQ):
+                        allActionsMaxQ = eachActionQ.argmax()
+                if(allActionsMaxQ > maxQ):
+                    tempactionMaxAt = eachActionQMaxAt    # I use a temp var here to copy the max actionslist because I don't want to replace the actionsMaxAt 
+                    maxQ = allActionsMaxQ                 # being used within the for loop before moving to the previous recursion level
+                    return tempactionMaxAt
+                else: return actionMaxAt    # I return this because I receive the func call returned into actionMaxAt var and so must return something
                 
 ################################### EVAN ###################################################
-def getNextStatesForActions(currentPlayer, stateNum):
+def getNextStatesForActions(currentPlayer, coinPositions):
     return [0]
 ############################################################################################
 
@@ -112,5 +135,6 @@ if __name__ == "__main__":
     modifiedQtable = modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList)
     actionMaxAt = [[i,i,i,i] for i in range(24)]
     nextStates = [0]
-    actionMaxAt = maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth)  # Returns a list of index values where that player has max Q value for that action
+    coinPositions = random.sample(xrange(57), 16)
+    actionMaxAt = maximax(stateNum, nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth, coinPositions)  # Returns a list of index values where that player has max Q value for that action
     print(modifiedQtable[0,0,actionMaxAt[0][0],actionMaxAt[0][1],actionMaxAt[0][2],actionMaxAt[0][3]])
