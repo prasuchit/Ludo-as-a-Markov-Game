@@ -1,5 +1,8 @@
 import graphics
 import random
+import numpy as np
+import maximax
+from operator import itemgetter #Is this really necessary?
 from time import sleep
 from tkinter import Button, Label, PhotoImage, simpledialog
 
@@ -33,9 +36,24 @@ HUMAN = 0
 RANDOM = 1
 RATIONAL = 2
 
+qTable = [] #The q table!
+gamma = 0.5 #The discount value is quite low because the game is so unpredictable, so immediate reward takes priority.
+alpha = 1 #The learning rate, which decays as the agent explores.
+decay = .9999954 #The decay rate, which determines how long the agent learns.
+learn = True #Whether or not the agent is supposed to learn.
+
 done = False #Checks if the game is over. The game ends when someone wins.
 
 rolls = [0, 0, 0] #The rolls of each die.
+
+#Feature names.
+DANGER = 0
+SAFETY = 1
+KILL = 2
+GOAL = 3
+DOUBLE = 4
+DEPLOY = 5
+GENERIC = 6
 
 root = graphics.root
 # Creating a photoimage object to use image 
@@ -49,44 +67,93 @@ sides = [PhotoImage(file = r"die1.gif"),
          PhotoImage(file = r"die5.gif"),
          PhotoImage(file = r"die6.gif")]
 
+#Number of games to be played.
+GAME_COUNT = 10 #Adjust as needed!
+games_played = 0 #Number of games that have been played.
+
 #Prints the given player's turn.
 def turn():
     L2 = Label(root, text= PLAYER_NAMES[whose] + "'s Turn    ", fg='Black', 
                background= PLAYER_NAMES[whose].lower(), font=("Arial", 24, "bold"))
     L2.place(x=770, y=50)
-
+    
+def clear():        #clears all the variable prior to next player's turn
+    L1 = Label(root, text="                                       ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
+    L1.place(x=770, y=200)
+    L3 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
+    L3.place(x=800, y=250)
+    L4 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
+    L4.place(x=800, y=300)
+    if not done:
+        turn()
+        
+#Make the Q table and populate it either with values from a txt, or initialized to 0.
+def makeQTable(qFile):
+    #The size of the q table has to be realized in advance. Its dimensions are like so...
+    #The number of players: 4.
+    #The number of states: 2401 (the configuration of features).
+    #The actions available for each player: 4 pieces, 6 actions each (for each die roll) = 24 actions... and 4 players.
+    qTable = np.zeros((4, 2407, 24, 24, 24, 24))
+    #43046720
+    
+    if (qFile): #If there is a q file here, populate the q table with those values.
+        for i in range(len(qTable)):
+            for j in range(len(qTable[0])):
+                for k in range(len(qTable[0][0])):
+                    for l in range(len(qTable[0][0][0])):
+                        for m in range(len(qTable[0][0][0][0])):
+                            for n in range(len(qTable[0][0][0][0][0])):
+                                pass #REPLACE WITH READ IN FROM FILE
+    
+def makeBoard():
+    global box, cboxes, homes, players, playerTypes, whose, done
+    
+    graphics.initBoard(False, False, '1000x750', 'green', "Ludo as a Markov Game", "logos.txt")
+    graphics.drawBoard()
+    #These variables are ported over from the graphics module to shorten notation.
+    box = graphics.box
+    cboxes = graphics.cboxes
+    homes = graphics.homes
+    players = graphics.players
+    #The user is then asked to give a mixture humans versus computers.
+    humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
+    randoms = 0 #Scopes are going to be the death of me.
+    rationals = 0
+    #If there are any computers participating, the user is asked how many of those computers are to be random players.
+    if humans < 4:
+        randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
+                                         parent=root, minvalue=0, maxvalue=(4 - humans))
+        rationals = 4 - humans - randoms
+        
+        #Need to pull in the q table if there are any rational agents.
+        if rationals > 0:
+            #TODO Change to the location of the q table file when it's been made!
+            qTable = makeQTable(None)
+            print("Done.")
+        
+    #With the split of players decided, they are now distributed to the playertypes list.
+    for _ in range(humans):
+        playerTypes.append(HUMAN)
+    for _ in range(randoms):
+        playerTypes.append(RANDOM)
+    for _ in range(rationals):
+        playerTypes.append(RATIONAL)
+    #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
+    
+    #Last thing to do is decide who goes first.
+    whose = random.randint(0,3)
+    turn()
+    
+    #The game, of course, isn't done, it just got started.
+    done = False
+    
+    #Also if there's any weirdness with the labels, that can be fixed.
+    clear()
+    
 def main():                                 # Main game function.
     global box, cboxes, homes, players, playerTypes, whose
     if c == 0:                              #constructs the game pieces first time the code is ran.
-
-        graphics.initBoard(False, False, '1000x750', 'green', "Ludo as a Markov Game", "logos.txt")
-        graphics.drawBoard()
-        #These variables are ported over from the graphics module to shorten notation.
-        box = graphics.box
-        cboxes = graphics.cboxes
-        homes = graphics.homes
-        players = graphics.players
-        #The user is then asked to give a mixture humans versus computers.
-        humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
-        randoms = 0 #Scopes are going to be the death of me.
-        rationals = 0
-        #If there are any computers participating, the user is asked how many of those computers are to be random players.
-        if humans < 4:
-            randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
-                                             parent=root, minvalue=0, maxvalue=(4 - humans))
-            rationals = 4 - humans - randoms
-        #With the split of players decided, they are now distributed to the playertypes list.
-        for _ in range(humans):
-            playerTypes.append(HUMAN)
-        for _ in range(randoms):
-            playerTypes.append(RANDOM)
-        for _ in range(rationals):
-            playerTypes.append(RATIONAL)
-        #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
-        
-        #Last thing to do is decide who goes first.
-        whose = random.randint(0,3)
-        turn()    
+        makeBoard()   
 
     elif not done:
         #What turn we take depends on the type of player at hand.
@@ -95,6 +162,9 @@ def main():                                 # Main game function.
         #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
         if not done:
             playTurn()
+            
+    elif games_played < GAME_COUNT:
+        makeBoard()
         
 
 main()    #Main function is called once when c==0 to initialize all the gamepieces.
@@ -340,8 +410,9 @@ def goalCheck(piece):
         winCheck()
 
 def winCheck():
-    global done
+    global done, games_played
     if not players[whose]: #If a player has no pieces left, they all reached the goal.
+        games_played += 1
         done = True
         clear() #Still has its use outside of passTurn().
         L1 = Label(root, text= PLAYER_NAMES[whose] + " Wins!             ", fg='Black', 
@@ -396,28 +467,236 @@ def isBlocked(atHome, which):
 #The end of the new functions!!!
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-def clear():        #clears all the variable prior to next player's turn
-    L1 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
-    L1.place(x=800, y=200)
-    L3 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
-    L3.place(x=800, y=250)
-    L4 = Label(root, text="        ", image = "", fg='Black', background='green', font=("Arial", 48, "bold"))
-    L4.place(x=800, y=300)
-    if not done:
-        turn()
-
 turn()            #prints "Red's turn" initially
 
 button = Button(root, text="    Roll    ", image = dice, relief="raised", font=("Arial", 20),  command=roll)  # call roll function evertime this button is clicked
 button.place(x=835, y=120)
 
 #-----Agent functions, behavior, and so on!-----
-#All functions for agent behavior will be prefixed with an "a" to make it easy to differentiate.
+#All functions for agent behavior will be prefixed with an "a" to make it easy to differentiate.  
+
+#Get the "feature" number of a given piece. A piece could be in multiple situations, but these describe the order of priority.
+#0: Danger! (any enemy piece is 1 to 6 spaces behind)
+#1: Safety opportunity (your piece is within 1 to 6 spaces of the home stretch)
+#2: Attack opportunity (any enemy piece is 1 to 6 spaces in front)
+#3: Goal opportunity (your piece is within 1 to 6 spaces of the goal)
+#4: Double opportunity (your piece is within 1 to 6 spaces of another piece of yours)
+#5: Deploy opportunity (your piece can leave home)
+#6: Generic (none of the conditions are met)
+def getFeature(player, position):
+    nex = (player + 1) % 4 #The player after the current one. ("next" is a keyword.)
+    after = (player + 2) % 4 #The player after that.
+    last = (player + 3) % 4 #The last player in the line.
+    
+    #The difference in location between this piece and the other players' can find both danger and kill checks.
+    #Also, it doesn't matter which player causes the danger or kill, just that it's there, so this list can be 1D!
+    distances = []
+    for i in range(nex):
+        otherSpot = players[nex][i].num #Similar logic for blocking.
+        if (otherSpot != -1):
+            relativeSpot = ((otherSpot + (3) * 13) % 50) #Other player's spot from the current player's perspective.
+            distances.append(position - relativeSpot)
+    for i in range(after):
+        otherSpot = players[after][i].num
+        if (otherSpot != -1):
+            relativeSpot = ((otherSpot + (2) * 13) % 50) #Other player's spot from the current player's perspective.
+            distances.append(position - relativeSpot)
+    for i in range(last):
+        otherSpot = players[last][i].num
+        if (otherSpot != -1):
+            relativeSpot = ((otherSpot + (1) * 13) % 50) #Other player's spot from the current player's perspective.
+            distances.append(position - relativeSpot)
+        
+    
+    #Danger check: if the player's piece isn't at or past the home stretch and the distance is between -1 and -6, it's in danger.
+    if position < 51:
+        for distance in distances:
+            if distance > -7 and distance < 0:
+                return DANGER
+    
+    #Check for safety: if the player is within 6 spaces of the home stretch (between spaces 45 and 50), they can enter the home stretch..
+    if position < 50 and position > 44:
+        return SAFETY
+    
+    #Check for kill chances: if the player's piece + the distance to the other piece would still be in the outer ring, and that difference
+    #is below 7, then a kill can be made. Not even worth checking if the piece is on the home stretch or one spot from it.
+    if position < 49:
+        for distance in distances:
+            if distance > 0 and distance < 7 and (position + distance) < 50:
+                return KILL
+    
+    #Check for the chance to move into a goal: if the piece is within 5 spaces of the goal (not 6, due to safety check), it can reach the goal.
+    if position > 50 and position < 56:
+        return GOAL
+    
+    #Check for the chance to get a double: if any of the other of the player's pieces are within 6 spaces (not at home/goal), can double.
+    for i in range(len(players[player])):
+        pieceDistance = position - players[player][i].num
+        if pieceDistance > 0 and pieceDistance < 7: #Inherently includes the piece(s) on the same spot; this is the opportunity to MAKE a double.
+            return DOUBLE
+    
+    #Check for the the chance for a piece to leave home: if a piece is at home, it's... at home.
+    if position == -1:
+        return DEPLOY
+    
+    #If none of these situations have been met, either the piece is at the goal or somewhere of no particular note.
+    return GENERIC
+
+#Get the current state of the game, purely as the placement of the players.
+def getStates():
+    return [players[RED], players[BLUE], players[YELLOW], players[GREEN]]
+
+#Get the state that results from a player moving their given piece.    
+def getNewState(states, who, which, roll):
+    newState = []
+    for i in range(4):
+        newPlayer = []
+        for j in range(4):
+            #If the piece that is being moved is the one being considered, get its new position.
+            if who == i and j == which:
+                if states[who][j].num == -1: #Piece is at home, meaning it's about to be deployed.
+                    newPlayer.append(0)
+                else: #Otherwise its new location has to be calculated.
+                    newPlayer.append(states[who][j].num + roll)
+        newState.append(newPlayer)
+    return newState
+                
+
+#Get the state number for the given player.
+def getStateNumber(whoseTurn, state):
+    #The states are reduced to low level features for the purpose of shrinking the state space (see getFeature()).
+    pieces = [getFeature(whoseTurn, players[whoseTurn][i].num) for i in range(len(players[whoseTurn]))] #Is it really that easy? (Use below commented if not)
+#     for i in range(4):
+#         pieces.append(getFeature(whoseTurn, players[whoseTurn][i].num)) #This means the first piece of each will be added, then the second...
+
+    #Suppose some of the pieces reached the goal... then it's safe to just say they're at a generic opportunity for the purpose of obtaining a state number.
+    #They still have to be filled in to correspond to a given state number.
+    #May have to introduce error checking to see if the suggested move is moving a piece at the goal.
+    #(But also maybe not; the reachable states only come from actions that can be taken, so maybe moving the goal piece will never be suggested anyway!)
+    while (len(pieces) < 4):
+        pieces.append(GENERIC)
+        
+    stateNum = 0 #The state number.
+    #Since we consider each configuration of a piece individually, it's akin to converting base 7 to base 10.
+    #Configuration is xxxx, where x is a piece's feature for the current player, from 0 to 6.
+    #We're converting from left to right instead of right to left, but that doesn't matter as long as we have consistency.
+    for i in range(len(pieces)):
+        stateNum += pieces[i] * pow(7, i)
+        
+    return stateNum #And there it is!
+
+def getNewPos(playerPieces, player, piece, roll):
+    return playerPieces[player][piece].num + roll
+
+#Calculate the reward that comes from taking an action in a given state. The actions are not
+#simultaneous, so it's difficult to calculate the reward that comes from other players' actions.
+#This basically means that the reward from the function only considers the immediate reward...
+#But that should be fine as the calculating of the Q value covers for future outcomes.
+def getReward(state, player, action, roll):
+    dest = getNewPos(players, player, action, roll) #Where the piece ends up if it's moved.
+    
+    #The reward that can be obtained depends on if either...
+    if dest == 56: #If the piece reaches a goal,
+        return 10
+    else:
+        #if the piece can kill someone else's piece,
+        canKill = False
+        
+        nex = (player + 1) % 4 #The player after the current one. ("next" is a keyword.)
+        after = (player + 2) % 4 #The player after that.
+        last = (player + 3) % 4 #The last player in the line.
+        
+        for i in range(len(state[nex])):
+            if dest == state[nex][i].num:
+                canKill = True
+        for i in range(len(state[after])):
+            if dest == state[after][i].num:
+                canKill = True
+        for i in range(len(state[last])):
+            if dest == state[last][i].num:
+                canKill = True    
+        if canKill:
+            return .5    
+        else:
+            #if the piece can make a double,
+            for i in (len(state[player])):
+                if i != action and dest == state[player][i].num:
+                    return 0
+                
+            #if the piece is leaving home,
+            if dest == 0:
+                return -0.01
+            else: #or if not, the piece is just moving.
+                return -0.05
+
+#Get the valid moves from a given state.
+def getValidMovesFromState(state, player, roll):
+    validIndices = [] #The indices to be returned.
+    
+    for i in range(len(state[player])):
+        spot = state[player][i] #The current piece's position.
+        #If the given piece is at home and the roll is a 6, that piece can move.
+        if spot == -1 and rolls[nc] == 6:
+            validIndices.append(i)
+        #Otherwise, if the player isn't at home and the roll wouldn't overshoot the goal, that piece can move.
+        elif spot > -1 and ((spot + roll) <= 56):
+            validIndices.append(i)
+            
+    return validIndices
+
+#Returns the action of moving a given piece, by a given distance, which allows for easy indexing.
+def getAction(piece, roll):
+    return (piece * 6) + (roll - 1)
+
+#Calculate the q values for a given state and action, combined with the possibilities of any other actions.
+def updateQValues(player, state, action):
+    global qTable, alpha
+    
+    currentStateNum = getStateNumber(whose, state) #The current state number for this player, by the features.
+    myAction = getAction(action, roll[nc])
+    
+    #The reward first needs to be calculated.
+    reward = getReward(state, player, action)
+    
+    #The new state that comes from this action must be saved.
+    nextState = getNewState(state, player, action, rolls[nc])
+    
+    #Now each subsequent player looks at each possible roll, gets the valid moves for that roll, and transitions to the next state.
+    #The next player's turn.
+    for i in range(1, 7):
+        furtherIndices = getValidMovesFromState(nextState, ((player + 1) % 4), i)
+        for nAction in furtherIndices:
+            furtherAction = getAction(nAction, i) #The index of the next player's action.
+            furtherState = getNewState(nextState, ((player + 1) % 4), nAction, i) #The state that comes from the next player making this move after the root player made theirs.
+            #The player who goes after the next player's turn.
+            for j in range(1, 7):
+                afterIndices = getValidMovesFromState(furtherState, ((player + 2) % 4), j)
+                for aAction in afterIndices: #The notation could be better, but this is the third player's action index.
+                    afterAction = getAction(aAction, j)
+                    afterState = getNewState(furtherState, ((player + 2) % 4), aAction, j)
+                    #The player who goes after all the others.
+                    for k in range(1, 7):
+                        finalIndices = getValidMovesFromState(afterState, ((player + 3) % 4), k)
+                        for fAction in finalIndices:
+                            finalAction = getAction(fAction, k)
+                            finalState = getNewState(afterState, ((player + 3) % 4), fAction, k)
+                            #For each final state we have reached the original player's turn again, which means we can calculate the q-value for the root player.
+                            #First we need to find the resulting state number.
+                            nextValue = getStateNumber(whose, finalState)
+                            #Now we calculate the q value based on the max q value from the next state, assuming all actions are available.
+                            #This of course means we need to get the max q value for each action in that state, and then the highest q value from those actions.
+                            maxActionQ = qTable[whose, nextValue, :, :, :, :].argmax()
+                            qTable[whose, currentStateNum, myAction, furtherAction, afterAction, finalAction] = (
+                            (1 - alpha) * qTable[whose, currentStateNum, myAction, furtherAction, afterAction, finalAction] + #Exploit
+                            alpha * (reward + gamma * maxActionQ)) #Explore
+                            
+    alpha *= decay #Another step of learning complete, and so it's time to explore less.
+                            
 
 #All AI players take their turns.
 def aTurns():
     while playerTypes[whose] != HUMAN and not done:
-        sleep(.1)
+        sleep(.1) #Can toggle if just gathering data.
         if playerTypes[whose] == RANDOM:
             aRandomTurn()
         else:
@@ -429,7 +708,7 @@ def aRandomTurn():
     global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc
     
     #First the rolls need to be acquired.
-    print(PLAYER_NAMES[whose] + "'s turn")
+#     print(PLAYER_NAMES[whose] + "'s turn")
     rollDice()
     
     #For each roll, check if there are any valid moves.
@@ -437,29 +716,8 @@ def aRandomTurn():
     while validMoves:
         #Choose randomly between the moves that can be made.
         moveIndex = validMoves[random.randint(0, len(validMoves) - 1)]
-        #The movement depends on if the piece in question is at home or on the board.
-        if players[whose][moveIndex].num == -1: #Piece is at home.
-            movePiece(moveIndex, 0)
-        else: #Piece is somewhere else.
-            movePiece(moveIndex, players[whose][moveIndex].num + rolls[nc])
-            
-        #This index needs to be updated to be used in the kill check.
-        bb = players[whose][moveIndex].num
-            
-        #Kill check.
-        nex = (whose + 1) % 4 #The player after the current one. ("next" is a keyword.)
-        after = (whose + 2) % 4 #The player after that.
-        last = (whose + 3) % 4 #The last player in the line.
-        kill(cboxes[whose], players[nex], players[after], players[last], homes[nex], homes[after], homes[last])
-            
-        #Double check.
-        doublecheck(players[whose])
         
-        #Goal and win check.
-        goalCheck(moveIndex)
-        
-        #Move to the next roll (if there is one).
-        nc = nc + 1
+        aiMove(moveIndex)
         
         #If the player has no more rolls, or if they won with this one, the turn is over.
         if done or nc >= len(rolls) or rolls[nc] == 0:
@@ -474,6 +732,77 @@ def aRandomTurn():
 
 #The current rational agent takes their turn.          
 def aRationalTurn():
-    pass
-
+    global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc, learn
+    
+    rollDice()
+    
+    validMoves = getValidMoves()
+    while validMoves:
+        #This is where the random agent and the rational agent diverge--if we've told the agent to keep learning,
+        #it'll update its q values.
+        if learn:
+            for move in validMoves:
+                updateQValues(whose, getStates(), move)
+        
+        moveIndex = 0
+        #There's no point doing any maximax if there's only one move available.
+        if validMoves > 1:
+            moveIndex = validMoves[0]
+        else:
+            #The action is either supplied by maximax if we're still learning,
+            #or just the max q value that comes from each of the actions if not.
+            if learn:
+                for i in range(4):
+                    pass
+#             if currentPlayer + i < 4:
+#                 playerList[i] = currentPlayer + i
+#             else:
+#                 playerList[i] = (currentPlayer + i) - 4
+#                totalActions = [i for i in range(24)]
+#                actionMaxAt = [[i,i,i,i] for i in range(24)]
+                #moveIndex = maximax.maximax(getStateNumber(whose, getStates()), nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth)
+            else:
+                #j,k,l = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
+                pass
+        
+        #The rest of the logic is identical.
+        aiMove(moveIndex)
+        
+        #If the player has no more rolls, or if they won with this one, the turn is over.
+        if done or nc >= len(rolls) or rolls[nc] == 0:
+            break
+        #Otherwise, move on to the next roll.
+        else:
+            validMoves = getValidMoves()
+    
+    #If the game isn't over, pass the turn.
+    if not done:
+        passTurn()
+    
+def aiMove(moveIndex):
+    global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc
+    
+    if players[whose][moveIndex].num == -1: #Piece is at home.
+        movePiece(moveIndex, 0)
+    else: #Piece is somewhere else.
+        movePiece(moveIndex, players[whose][moveIndex].num + rolls[nc])
+        
+    #This index needs to be updated to be used in the kill check.
+    bb = players[whose][moveIndex].num
+        
+    #Kill check.
+    nex = (whose + 1) % 4 #The player after the current one. ("next" is a keyword.)
+    after = (whose + 2) % 4 #The player after that.
+    last = (whose + 3) % 4 #The last player in the line.
+    kill(cboxes[whose], players[nex], players[after], players[last], homes[nex], homes[after], homes[last])
+        
+    #Double check.
+    doublecheck(players[whose])
+    
+    #Goal and win check.
+    goalCheck(moveIndex)
+    
+    #Move to the next roll (if there is one).
+    nc = nc + 1
+    
 root.mainloop()
