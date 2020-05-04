@@ -2,7 +2,6 @@ import graphics
 import random
 import numpy as np
 import maximax
-from operator import itemgetter #Is this really necessary?
 from time import sleep
 from tkinter import Button, Label, PhotoImage, simpledialog
 
@@ -36,11 +35,18 @@ HUMAN = 0
 RANDOM = 1
 RATIONAL = 2
 
+winners = [0, 0, 0, 0] #The win count for each player.
+
 qTable = [] #The q table!
+policies = [] #The policies! (Not needed?)
 gamma = 0.5 #The discount value is quite low because the game is so unpredictable, so immediate reward takes priority.
 alpha = 1 #The learning rate, which decays as the agent explores.
 decay = .9999954 #The decay rate, which determines how long the agent learns.
-learn = True #Whether or not the agent is supposed to learn.
+learn = True #Whether or not the agent is supposed to learn. Change to false when the agent is done learning.
+nextGame = False #Determines whether or not to loop into the next game if the current game finishes.
+                #True if learning overnight / gathering data of games. False if troubleshooting or playing with humans (or demonstrating?).
+
+totalActions = [i for i in range(24)] #All actions available to every player.
 
 done = False #Checks if the game is over. The game ends when someone wins.
 
@@ -68,7 +74,7 @@ sides = [PhotoImage(file = r"die1.gif"),
          PhotoImage(file = r"die6.gif")]
 
 #Number of games to be played.
-GAME_COUNT = 10 #Adjust as needed!
+GAME_COUNT = 100 #Adjust as needed!
 games_played = 0 #Number of games that have been played.
 
 #Prints the given player's turn.
@@ -89,21 +95,26 @@ def clear():        #clears all the variable prior to next player's turn
         
 #Make the Q table and populate it either with values from a txt, or initialized to 0.
 def makeQTable(qFile):
+    global qTable
     #The size of the q table has to be realized in advance. Its dimensions are like so...
     #The number of players: 4.
     #The number of states: 2401 (the configuration of features).
     #The actions available for each player: 4 pieces, 6 actions each (for each die roll) = 24 actions... and 4 players.
-    qTable = np.zeros((4, 2407, 24, 24, 24, 24))
-    #43046720
+    qTable = np.zeros((4, 2401, 24, 24, 24, 24))
     
     if (qFile): #If there is a q file here, populate the q table with those values.
-        for i in range(len(qTable)):
-            for j in range(len(qTable[0])):
-                for k in range(len(qTable[0][0])):
-                    for l in range(len(qTable[0][0][0])):
-                        for m in range(len(qTable[0][0][0][0])):
-                            for n in range(len(qTable[0][0][0][0][0])):
-                                pass #REPLACE WITH READ IN FROM FILE
+        f = open(qFile, 'rb')
+        qTable = np.load(f)
+        f.close()
+
+#Make the policy and populate it only if learning is false (thus it can be referenced for all decision making).        
+def makePolicy(pFile):
+    global policies
+    policies = np.zeros(2401, 6)
+    if not learn:
+        f = open(pFile, 'rb')
+        policies = np.load(f)
+        f.close()
     
 def makeBoard():
     global box, cboxes, homes, players, playerTypes, whose, done
@@ -115,30 +126,31 @@ def makeBoard():
     cboxes = graphics.cboxes
     homes = graphics.homes
     players = graphics.players
-    #The user is then asked to give a mixture humans versus computers.
-    humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
-    randoms = 0 #Scopes are going to be the death of me.
-    rationals = 0
-    #If there are any computers participating, the user is asked how many of those computers are to be random players.
-    if humans < 4:
-        randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
-                                         parent=root, minvalue=0, maxvalue=(4 - humans))
-        rationals = 4 - humans - randoms
-        
-        #Need to pull in the q table if there are any rational agents.
-        if rationals > 0:
-            #TODO Change to the location of the q table file when it's been made!
-            qTable = makeQTable(None)
-            print("Done.")
-        
-    #With the split of players decided, they are now distributed to the playertypes list.
-    for _ in range(humans):
-        playerTypes.append(HUMAN)
-    for _ in range(randoms):
-        playerTypes.append(RANDOM)
-    for _ in range(rationals):
-        playerTypes.append(RATIONAL)
-    #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
+    #The user is then asked to give a mixture humans versus computers, if it's the first game.
+    if games_played == 0:
+        humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
+        randoms = 0 #Scopes are going to be the death of me.
+        rationals = 0
+        #If there are any computers participating, the user is asked how many of those computers are to be random players.
+        if humans < 4:
+            randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
+                                             parent=root, minvalue=0, maxvalue=(4 - humans))
+            rationals = 4 - humans - randoms
+            
+            #Need to pull in the q table if there are any rational agents.
+            if rationals > 0:
+                #TODO Change to the location of the q table file when it's been made!
+                qTable = makeQTable(None)
+                print("Done.")
+            
+        #With the split of players decided, they are now distributed to the playertypes list.
+        for _ in range(humans):
+            playerTypes.append(HUMAN)
+        for _ in range(randoms):
+            playerTypes.append(RANDOM)
+        for _ in range(rationals):
+            playerTypes.append(RATIONAL)
+        #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
     
     #Last thing to do is decide who goes first.
     whose = random.randint(0,3)
@@ -162,9 +174,38 @@ def main():                                 # Main game function.
         #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
         if not done:
             playTurn()
+        elif learn and qTable: #A qTable only exists if there is a rational agent, but if the game is done, save the policy and q values.
+            #First save the qTable...
+            f = open('qTable.npy', 'wb')
+            np.save(f, qTable)
+            f.close()
+            #... now the policy.
+            f = open('policies.npy', 'wb')
+            np.save(f, policies)
+            f.close()
+            #Also, if we're repeating the games and the threshold hasn't been reached, go at it again!
+            if (learn and alpha >= .1) or (games_played < GAME_COUNT):
+                makeBoard()
+            #But if the games are done, report on the results.
+            else:
+                typeNames = []
+                for i in range(len(playerTypes)):
+                    typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Gross.
+                print(f"Types: {typeNames}")
+                print(f"Results: {winners}")
             
-    elif games_played < GAME_COUNT:
-        makeBoard()
+    else:
+        #If we're learning, the criteria for doing another game is if the learning rate is still above a certain threshold (.1 by default).
+        #If we're not learning, then we just go to the desired threshold of games.
+        if (learn and alpha >= .1) or (games_played < GAME_COUNT):
+            makeBoard()
+        #And otherwise, let's show the results.
+        else:
+            typeNames = []
+            for i in range(len(playerTypes)):
+                typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Still gross!
+            print(f"Types: {typeNames}")
+            print(f"Results: {winners}")
         
 
 main()    #Main function is called once when c==0 to initialize all the gamepieces.
@@ -410,9 +451,10 @@ def goalCheck(piece):
         winCheck()
 
 def winCheck():
-    global done, games_played
+    global done, games_played, winners
     if not players[whose]: #If a player has no pieces left, they all reached the goal.
         games_played += 1
+        winners[whose] += 1 #The given player has won yet another game.
         done = True
         clear() #Still has its use outside of passTurn().
         L1 = Label(root, text= PLAYER_NAMES[whose] + " Wins!             ", fg='Black', 
@@ -471,6 +513,29 @@ turn()            #prints "Red's turn" initially
 
 button = Button(root, text="    Roll    ", image = dice, relief="raised", font=("Arial", 20),  command=roll)  # call roll function evertime this button is clicked
 button.place(x=835, y=120)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #-----Agent functions, behavior, and so on!-----
 #All functions for agent behavior will be prefixed with an "a" to make it easy to differentiate.  
@@ -542,30 +607,10 @@ def getFeature(player, position):
     #If none of these situations have been met, either the piece is at the goal or somewhere of no particular note.
     return GENERIC
 
-#Get the current state of the game, purely as the placement of the players.
-def getStates():
-    return [players[RED], players[BLUE], players[YELLOW], players[GREEN]]
-
-#Get the state that results from a player moving their given piece.    
-def getNewState(states, who, which, roll):
-    newState = []
-    for i in range(4):
-        newPlayer = []
-        for j in range(4):
-            #If the piece that is being moved is the one being considered, get its new position.
-            if who == i and j == which:
-                if states[who][j].num == -1: #Piece is at home, meaning it's about to be deployed.
-                    newPlayer.append(0)
-                else: #Otherwise its new location has to be calculated.
-                    newPlayer.append(states[who][j].num + roll)
-        newState.append(newPlayer)
-    return newState
-                
-
 #Get the state number for the given player.
 def getStateNumber(whoseTurn, state):
     #The states are reduced to low level features for the purpose of shrinking the state space (see getFeature()).
-    pieces = [getFeature(whoseTurn, players[whoseTurn][i].num) for i in range(len(players[whoseTurn]))] #Is it really that easy? (Use below commented if not)
+    pieces = [getFeature(whoseTurn, state[whoseTurn][i].num) for i in range(len(state[whoseTurn]))] #Is it really that easy? (Use below commented if not)
 #     for i in range(4):
 #         pieces.append(getFeature(whoseTurn, players[whoseTurn][i].num)) #This means the first piece of each will be added, then the second...
 
@@ -584,6 +629,25 @@ def getStateNumber(whoseTurn, state):
         stateNum += pieces[i] * pow(7, i)
         
     return stateNum #And there it is!
+
+#Get the current state of the game, purely as the placement of the players.
+def getStates():
+    return [players[RED], players[BLUE], players[YELLOW], players[GREEN]]
+
+#Get the state that results from a player moving their given piece.    
+def getNewState(states, who, which, roll):
+    newState = []
+    for i in range(4):
+        newPlayer = []
+        for j in range(4):
+            #If the piece that is being moved is the one being considered, get its new position.
+            if who == i and j == which:
+                if states[who][j].num == -1: #Piece is at home, meaning it's about to be deployed.
+                    newPlayer.append(0)
+                else: #Otherwise its new location has to be calculated.
+                    newPlayer.append(states[who][j].num + roll)
+        newState.append(newPlayer)
+    return newState
 
 def getNewPos(playerPieces, player, piece, roll):
     return playerPieces[player][piece].num + roll
@@ -732,7 +796,7 @@ def aRandomTurn():
 
 #The current rational agent takes their turn.          
 def aRationalTurn():
-    global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc, learn
+    global rolls, rolled, dice, rolled, bb, c, rolls, whose, nc, learn, policies
     
     rollDice()
     
@@ -749,21 +813,49 @@ def aRationalTurn():
         if validMoves > 1:
             moveIndex = validMoves[0]
         else:
-            #The action is either supplied by maximax if we're still learning,
-            #or just the max q value that comes from each of the actions if not.
+            #Get the state number, for use in multiple places later.
+            stateNum = getStateNumber(whose, getStates())
+            #The action is supplied by maximax if we're still learning.
             if learn:
+                #Determine the player list.
+                playerList = []
                 for i in range(4):
-                    pass
-#             if currentPlayer + i < 4:
-#                 playerList[i] = currentPlayer + i
-#             else:
-#                 playerList[i] = (currentPlayer + i) - 4
-#                totalActions = [i for i in range(24)]
-#                actionMaxAt = [[i,i,i,i] for i in range(24)]
-                #moveIndex = maximax.maximax(getStateNumber(whose, getStates()), nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth, maxDepth)
+                    playerList.append((whose + i) % 4)
+                #Then translate the valid actions from moving pieces to moving pieces with their rolls (to obtain a value 0 to 23).
+                validActions = []
+                for i in range(len(validMoves)):
+                    validActions.append(getAction(validMoves[i], rolls[nc]))
+                #Create the modified Q table to pass in.
+                modifiedQtable = maximax.modifiedQtable(qTable, stateNum, totalActions, validActions, playerList)
+                #Now choose the best action via Q maximax (have to convert back to which roll we had, hence the mod 4).
+                #Looks like the list of next states should be an empty list, seeing as it just gets replaced on the first iteration.
+                #Likewise for actionMaxAt.
+                #Maybe set the policy instead? With this roll, and this state number, this is what the player should do. Might not be valid!
+                policies[stateNum, roll] = maximax.maximax([], playerList, modifiedQtable, 0, coinPositions=getStates()) % 6
+                #If the policy is can be executed in the current state, do that. If not, choose a move from the valid moves at random.
+                canDoPolicy = False
+                for move in validMoves:
+                    if policies[stateNum, roll] == move: #It's one of the valid moves!
+                        canDoPolicy = True
+                        
+                if canDoPolicy: #We can do the policy! So, do it.
+                    moveIndex = policies[stateNum, roll]
+                    print("Can do the policy; executing.")
+                else: #Dang, the policy doesn't work here. Choose a move at random instead.
+                    validMoves[random.randint(0, len(validMoves) - 1)]
+                    print("Can't do the policy, do random moves.")
             else:
-                #j,k,l = np.unravel_index(eachActionQ.argmax(), eachActionQ.shape) # Getting the index of the max Q value out of all values corresponding to that action
-                pass
+                #Choose from the policy if we're not learning instead, and as before, pick a random move if the policy doesn't work.
+                #If the policy is can be executed in the current state, do that. If not, choose a move from the valid moves at random.
+                canDoPolicy = False
+                for move in validMoves:
+                    if policies[stateNum, roll] == move: #It's one of the valid moves!
+                        canDoPolicy = True
+                        
+                if canDoPolicy: #We can do the policy! So, do it.
+                    moveIndex = policies[stateNum, roll]
+                else: #Dang, the policy doesn't work here. Choose a move at random instead.
+                    validMoves[random.randint(0, len(validMoves) - 1)]
         
         #The rest of the logic is identical.
         aiMove(moveIndex)

@@ -1,0 +1,46 @@
+A glossary of many things ludo_game, from the perspective of the rational agent! You can search the following (in all caps, as written) to jump to their relative parts.
+GLOBALS
+FUNCTIONS
+WORKFLOW
+
+Glossary of (relevant) GLOBALS: (Listed alphabetically since I don't know when you'll encounter them)
+alpha: The learning rate, which is reduced by multiplying it by decay each time the qTable is updated.
+DANGER, SAFETY, KILL, GOAL, DOUBLE, DEPLOY, GENERIC: Constants representing the feature names.
+gamma: The discount factor.
+learn: True if we're learning, false if not. If true, when an AI takes its turn, a q update and maximax will be performed. If not, the agent just chooses its policy.
+nextGame: True if gathering a lot of data (so the games go automatically), false otherwise.
+playerTypes: What type each player is. HUMAN, RANDOM, RATIONAL.
+pollicies: The policy table, where each state number has the best move to make on a given roll.
+qTable: the Q table.
+rollc: The current roll number. 0, 1, or 2.
+rolls: Stores the rolls for the player of the current turn.
+winners: The winners of the game.
+whose: The player whose turn it is. RED, BLUE, YELLOW, GREEN.
+
+Glossary of (relevant) FUNCTIONS: (Listed top to bottom so you can easily find them)
+makeQTable(): Makes the q table from either the 0's, or from the file if it exists.
+makePolicy(): Likewise with the policies
+getFeature(): Returns the feature of a given piece.
+getStateNumber(): Gets the state number of the given state with respect to the given player (so only looks at the features of their given pieces).
+getStates(): Returns the pieces' placement in the game currently
+getNewState(): With a given roll and player's turn, returns the piece placement that results from making that move.
+getReward(): Gets the reward for a given action, for a given player, in a given state.
+getValidMovesFromState(): With a given state and roll, gets the valid moves for the given player (a bit redundant with getValidMoves(), but that one doesn't return the state)
+getAction(): Given a roll and which piece is being moved, get the corresonding action index (example: move piece 2 with roll 3: 2 * 6 + (3 - 1) returns 14)
+updateQValues(): For each possible action for the player, update all reachable q values (my action, all next actions, all actions from those next actions, and all last actions from those...)
+aTurns(): All AI players take their turns until a human player (if there is one) or until the game is done (if there isn't one)
+aRandomTurn(): A random agent takes their turn (works fine)
+aRationalTurn(): A rational agent takes their turn (explained in detail in the last section)
+aiMove(): Handles the logic for the agent actually moving after their move is chosen (also works fine, at least if the moveIndex is chosen correctly)
+
+WORKFLOW (A sample run through the logic of the game and what should(!) happen)
+0. We're trying to train the agents here for now, so choose 0 for humans, and 0 for random agents.
+1. Click anywhere that isn't on the roll, the board gets constructed. Since the qTable doesn't initially exist, it's constructed from 0's in makeQTable(), and same for policies in makePolicy().
+2. The rational agent takes their turn by flowing from aiTurns() to aRationalTurn(). The validMoves for the current player are obtained. If learn if false, skip to step 5. But if it's true...
+3. From the valid actions with the state we're in, updateQValues() (and consequently alpha will be reduced by decay).
+4. Obtain the necessary information to pass into maximax (check the parameters passed in please!), and update the policy according the the action that maximax passes back and the roll that the player has.
+5. Check if the policy can be executed for the given state number. If it can be, choose that move. If it can't be (not very likely), choose an action at random from the valid ones.
+6. However the action is chosen, execute that.
+7. Loop back to step 3 if the there are still more moves you can make, or move on otherwise (thus the turn is over).
+8. The turn passes if the game isn't over (back to step 2). But if it is, move onto the next game (which goes back to step 1 but without constructing the qTable) if the learning rate hasn't sunk below its threshold.
+9. When all the games are over, report on the results (in main()).
