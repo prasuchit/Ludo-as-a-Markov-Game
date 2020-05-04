@@ -10,7 +10,7 @@ gamma: The discount factor.
 learn: True if we're learning, false if not. If true, when an AI takes its turn, a q update and maximax will be performed. If not, the agent just chooses its policy.
 nextGame: True if gathering a lot of data (so the games go automatically), false otherwise.
 playerTypes: What type each player is. HUMAN, RANDOM, RATIONAL.
-pollicies: The policy table, where each state number has the best move to make on a given roll.
+policies: The policy table, where each state number has the best move to make on a given roll.
 qTable: the Q table.
 rollc: The current roll number. 0, 1, or 2.
 rolls: Stores the rolls for the player of the current turn.

@@ -1,5 +1,1 @@
-Finish minimax and check with test data
-Create a mapping between player positions 
-and board state number to look up by state 
-number the next time we encounter the same
-combination of players on board.
+Get nextStatesForActions is returning dummy values, fix that

@@ -1,7 +1,7 @@
 import graphics
 import random
 import numpy as np
-import maximax
+import optimalAction
 from time import sleep
 from tkinter import Button, Label, PhotoImage, simpledialog
 
@@ -47,6 +47,7 @@ nextGame = False #Determines whether or not to loop into the next game if the cu
                 #True if learning overnight / gathering data of games. False if troubleshooting or playing with humans (or demonstrating?).
 
 totalActions = [i for i in range(24)] #All actions available to every player.
+actionMaxAt = [[i,i,i,i] for i in range(24)]
 
 done = False #Checks if the game is over. The game ends when someone wins.
 
@@ -62,6 +63,9 @@ DEPLOY = 5
 GENERIC = 6
 
 root = graphics.root
+root.lift()
+root.attributes('-topmost',True)
+root.after_idle(root.attributes,'-topmost',False)
 # Creating a photoimage object to use image 
 dice = PhotoImage(file = r"dice.gif") 
 
@@ -128,13 +132,15 @@ def makeBoard():
     players = graphics.players
     #The user is then asked to give a mixture humans versus computers, if it's the first game.
     if games_played == 0:
-        humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
+        # humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
+        humans = 0  # Test input, comment out later
         randoms = 0 #Scopes are going to be the death of me.
         rationals = 0
         #If there are any computers participating, the user is asked how many of those computers are to be random players.
         if humans < 4:
-            randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
-                                             parent=root, minvalue=0, maxvalue=(4 - humans))
+            # randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
+            #                                  parent=root, minvalue=0, maxvalue=(4 - humans))
+            randoms = 0 # Test input, comment out later
             rationals = 4 - humans - randoms
             
             #Need to pull in the q table if there are any rational agents.
@@ -610,9 +616,10 @@ def getFeature(player, position):
 #Get the state number for the given player.
 def getStateNumber(whoseTurn, state):
     #The states are reduced to low level features for the purpose of shrinking the state space (see getFeature()).
-    pieces = [getFeature(whoseTurn, state[whoseTurn][i].num) for i in range(len(state[whoseTurn]))] #Is it really that easy? (Use below commented if not)
-#     for i in range(4):
-#         pieces.append(getFeature(whoseTurn, players[whoseTurn][i].num)) #This means the first piece of each will be added, then the second...
+    # pieces = [getFeature(whoseTurn, state[whoseTurn][i].num) for i in range(len(state[whoseTurn]))] #Is it really that easy? (Use below commented if not)
+    pieces = []
+    for i in range(4):
+        pieces.append(getFeature(whoseTurn, players[whoseTurn][i].num)) #This means the first piece of each will be added, then the second...
 
     #Suppose some of the pieces reached the goal... then it's safe to just say they're at a generic opportunity for the purpose of obtaining a state number.
     #They still have to be filled in to correspond to a given state number.
@@ -683,9 +690,12 @@ def getReward(state, player, action, roll):
             return .5    
         else:
             #if the piece can make a double,
-            for i in (len(state[player])):
+            for i in range(len(state[player])):
                 if i != action and dest == state[player][i].num:
                     return 0
+                else:
+                    # print("i != action and dest == state[player][i].num did not satisfy...")
+                    pass
                 
             #if the piece is leaving home,
             if dest == 0:
@@ -717,10 +727,10 @@ def updateQValues(player, state, action):
     global qTable, alpha
     
     currentStateNum = getStateNumber(whose, state) #The current state number for this player, by the features.
-    myAction = getAction(action, roll[nc])
+    myAction = getAction(action, rolls[nc])
     
     #The reward first needs to be calculated.
-    reward = getReward(state, player, action)
+    reward = getReward(state, player, action, rolls[nc])
     
     #The new state that comes from this action must be saved.
     nextState = getNewState(state, player, action, rolls[nc])
@@ -760,7 +770,7 @@ def updateQValues(player, state, action):
 #All AI players take their turns.
 def aTurns():
     while playerTypes[whose] != HUMAN and not done:
-        sleep(.1) #Can toggle if just gathering data.
+        # sleep(.1) #Can toggle if just gathering data.
         if playerTypes[whose] == RANDOM:
             aRandomTurn()
         else:
@@ -810,7 +820,7 @@ def aRationalTurn():
         
         moveIndex = 0
         #There's no point doing any maximax if there's only one move available.
-        if validMoves > 1:
+        if len(validMoves) > 1:
             moveIndex = validMoves[0]
         else:
             #Get the state number, for use in multiple places later.
@@ -826,12 +836,13 @@ def aRationalTurn():
                 for i in range(len(validMoves)):
                     validActions.append(getAction(validMoves[i], rolls[nc]))
                 #Create the modified Q table to pass in.
-                modifiedQtable = maximax.modifiedQtable(qTable, stateNum, totalActions, validActions, playerList)
+                modifiedQtable = optimalAction.modifiedQtable(qTable, stateNum, totalActions, validActions, playerList)
                 #Now choose the best action via Q maximax (have to convert back to which roll we had, hence the mod 4).
                 #Looks like the list of next states should be an empty list, seeing as it just gets replaced on the first iteration.
                 #Likewise for actionMaxAt.
                 #Maybe set the policy instead? With this roll, and this state number, this is what the player should do. Might not be valid!
-                policies[stateNum, roll] = maximax.maximax([], playerList, modifiedQtable, 0, coinPositions=getStates()) % 6
+                bestAction = optimalAction.maximax(nextStates=[], playerList=playerList, modifiedQtable=modifiedQtable, actionMaxAt=actionMaxAt, coinPositions=getStates())
+                policies[stateNum, roll] = bestAction % 6
                 #If the policy is can be executed in the current state, do that. If not, choose a move from the valid moves at random.
                 canDoPolicy = False
                 for move in validMoves:
