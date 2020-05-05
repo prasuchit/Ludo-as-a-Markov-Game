@@ -3,7 +3,7 @@ import math as m
 import random
 from scipy._lib.six import xrange
 import ludo_game
-def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = -1, maxDepth = 3, coinPositions = []):  
+def maximax(playerList, modifiedQtable, actionMaxAt, currentDepth = -1, maxDepth = 3, coinPositions = []):  
     # Q table is a nS*24*24*24*24 table 
     # Q[playerNumber, state, actions, reactions, reactions, reactions]
     ########################################################################################################
@@ -30,18 +30,19 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
 
 ################################### If Root Player #######################################################################        
     elif currentDepth == 0:
-        print("We have reached the root! The root player is: ", playerList[currentDepth])
+        # print("We have reached the root! The root player is: ", playerList[currentDepth])
         validActions = ludo_game.getValidMoves()   # Get valid moves for the root player who just rolled the dice
-        print("Valid actions for root are: ", validActions)
+        # print("Valid actions for root are: ", validActions)
         nextStates = getNextStatesForActions(playerList[currentDepth], coinPositions, currentDepth)
+        # print("Next states for root are: ", nextStates)
         newactionMaxAt = []
         for state in nextStates:
             stateNum = ludo_game.getStateNumber(playerList[currentDepth], state)   # This is the function imported from ludo_game
-            maximax(nextStates=nextStates,playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= coinPositions)
+            maximax(playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= state)
             allActionsMaxQ = -m.inf
             # Checking if the current lvl corresponds to player 0
             if(playerList[currentDepth] == 0): 
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     if(actionMaxAt[aNum][0] in validActions):
                         eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, actionMaxAt[aNum][0], :, :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -55,20 +56,22 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
                     maxQ = allActionsMaxQ                 # within the for loop which is being used as the modifiedQtable index before moving to the previous recursion level
                     if state == nextStates[-1]:     # Only return a value at the last state for that player so that the for loop doesn't exit before exploring all next states
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,newactionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo   # The returned newActionMaxAt was updated only in the states where it had a better q value than the already explored states, 
                                                 # so we are only returning the best possible actions list for that player from all his states.
                     else:
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,actionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo    # This is returned when none of the states for that player found a better Q value. This will not execute usually, it is a default condition.
                 else: pass
 
             # Checking if the current lvl corresponds to player 1
             if(playerList[currentDepth] == 1):  
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     if(actionMaxAt[aNum][1] in validActions):
                         eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, actionMaxAt[aNum][1], :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -82,20 +85,22 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
                     maxQ = allActionsMaxQ                 # within the for loop which is being used as the modifiedQtable index before moving to the previous recursion level
                     if state == nextStates[-1]:     # Only return a value at the last state for that player so that the for loop doesn't exit before exploring all next states
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,newactionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo   # The returned newActionMaxAt was updated only in the states where it had a better q value than the already explored states, 
                                                 # so we are only returning the best possible actions list for that player from all his states.
                     else:
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,actionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo    # This is returned when none of the states for that player found a better Q value. This will not execute usually, it is a default condition.
                 else: pass
             
             # Checking if the current lvl corresponds to player 2
             if(playerList[currentDepth] == 2):  
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     if(actionMaxAt[aNum][2] in validActions):
                         eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, actionMaxAt[aNum][2], :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -109,20 +114,22 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
                     maxQ = allActionsMaxQ                 # within the for loop which is being used as the modifiedQtable index before moving to the previous recursion level
                     if state == nextStates[-1]:     # Only return a value at the last state for that player so that the for loop doesn't exit before exploring all next states
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,newactionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo   # The returned newActionMaxAt was updated only in the states where it had a better q value than the already explored states, 
                                                 # so we are only returning the best possible actions list for that player from all his states.
                     else:
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,actionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo    # This is returned when none of the states for that player found a better Q value. This will not execute usually, it is a default condition.
                 else: pass
 
             # Checking if the current lvl corresponds to player 3
             if(playerList[currentDepth] == 3):  
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     if(actionMaxAt[aNum][3] in validActions):
                         eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, :, actionMaxAt[aNum][3]] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
@@ -136,15 +143,16 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
                     maxQ = allActionsMaxQ                 # within the for loop which is being used as the modifiedQtable index before moving to the previous recursion level
                     if state == nextStates[-1]:     # Only return a value at the last state for that player so that the for loop doesn't exit before exploring all next states
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,newactionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
-                        print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo   # The returned newActionMaxAt was updated only in the states where it had a better q value than the already explored states, 
                                                 # so we are only returning the best possible actions list for that player from all his states.
                     else:
                         maxActionIndex = findMaxActionIndex(playerList[0],modifiedQtable,stateNum,actionMaxAt)
-                        print("We are returning now")
+                        # print("We are returning now")
                         actionThePlayerShouldDo = maxActionIndex[playerList[0]]
+                        # print("This is the action player ",playerList[currentDepth]," should do: ", actionThePlayerShouldDo)
                         return actionThePlayerShouldDo    # This is returned when none of the states for that player found a better Q value. This will not execute usually, it is a default condition.
                 else: pass
 ####################################### If not Root Player ###########################################################################################################################                
@@ -153,11 +161,11 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
         newactionMaxAt = []
         for state in nextStates:
             stateNum = ludo_game.getStateNumber(playerList[currentDepth], state)   # This is the function imported from ludo_game
-            maximax(nextStates=nextStates,playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= coinPositions)
+            maximax(playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= state)
             allActionsMaxQ = -m.inf
             # Checking if the current lvl corresponds to player 0
             if(playerList[currentDepth] == 0): 
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, actionMaxAt[aNum][0], :, :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     i = aNum    # Copying the index value of that action
@@ -175,8 +183,8 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
                 else: pass
 
             # Checking if the current lvl corresponds to player 1
-            if(playerList[currentDepth] == 1):  
-                print("Current Player: ", playerList[currentDepth])
+            if(playerList[currentDepth] == 1):
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, actionMaxAt[aNum][1], :, :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     j = aNum    # Copying the index value of that action
@@ -195,7 +203,7 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
             
             # Checking if the current lvl corresponds to player 2
             if(playerList[currentDepth] == 2):  
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, actionMaxAt[aNum][2], :] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     k = aNum    # Copying the index value of that action
@@ -214,7 +222,7 @@ def maximax(nextStates, playerList, modifiedQtable, actionMaxAt, currentDepth = 
 
             # Checking if the current lvl corresponds to player 3
             if(playerList[currentDepth] == 3):  
-                print("Current Player: ", playerList[currentDepth])
+                # print("Current Player: ", playerList[currentDepth])
                 for aNum in range(len(actionMaxAt)):
                     eachActionQ = modifiedQtable[playerList[currentDepth],stateNum, :, :, :, actionMaxAt[aNum][3]] # Extracting all Q values I get wrt others' actions for one action (aNum) of mine
                     l = aNum    # Copying the index value of that action
@@ -238,7 +246,7 @@ def findMaxActionIndex(rootPlayer, modifiedQtable, stateNum, actionMaxAt):
     maxAction = -m.inf
     maxActionIndex = -m.inf
     for act in actionMaxAt:
-        print("Player: ", rootPlayer, "stateNum: ",stateNum, " Performing action: ", act[rootPlayer], " Corresponding Q value: ",modifiedQtable[rootPlayer,stateNum,act[0],act[1],act[2],act[3]])
+        # print("Player: ", rootPlayer, "stateNum: ",stateNum, " Performing action: ", act[rootPlayer], " Corresponding Q value: ",modifiedQtable[rootPlayer,stateNum,act[0],act[1],act[2],act[3]])
         if(modifiedQtable[rootPlayer,stateNum,act[0],act[1],act[2],act[3]] > maxAction):
             maxAction = modifiedQtable[rootPlayer,stateNum,act[0],act[1],act[2],act[3]]
             maxActionIndex = act
@@ -261,7 +269,7 @@ def getNextStatesForActions(currentPlayer, coinPositions, currentDepth):
                 nextStates.append(ludo_game.getNewState(coinPositions, currentPlayer, move, i))
         pass
     return nextStates
-    # return [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]] # Each sublist is one state with 16 values one for each coin
+    # return [[0,0,0,0][0,0,0,0][0,0,0,0][0,0,0,0]] # Each sublist is one state with 16 values one for each coin
 ############################################################################################
 
 def modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList):
@@ -270,7 +278,7 @@ def modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList):
     currentPlayer = playerList[0]
     modifiedQtable = Qtable
     invalidActions =  set(totalActions) ^ set(validActions)
-    print("Setting current player",  currentPlayer, "in state",stateNum, "invalid actions", invalidActions," to -inf")
+    # print("Setting current player",  currentPlayer, "in state",stateNum, "invalid actions", invalidActions," to -inf")
     for i in range(len(playerList)):
         for j in invalidActions:
             if currentPlayer == 0:
@@ -281,7 +289,8 @@ def modifiedQtable(Qtable, stateNum, totalActions, validActions, playerList):
                 modifiedQtable[playerList[i], stateNum, :, :, j, :] = -m.inf
             elif currentPlayer == 3:
                 modifiedQtable[playerList[i], stateNum, :, :, :, j] = -m.inf
-            else: print("Player number input is incorrect!")
+            else: # print("Player number input is incorrect!")
+                pass
     return modifiedQtable
 
 if __name__ == "__main__":
@@ -306,5 +315,5 @@ if __name__ == "__main__":
     actionMaxAt = [[i,i,i,i] for i in range(24)]
     nextStates = [0]
     coinPositions = random.sample(xrange(57), 16)
-    actionMaxAt = maximax(nextStates=nextStates,playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= coinPositions)  # Returns a list of index values where that player has max Q value for that action
-    print(modifiedQtable[0,0,actionMaxAt[0][0],actionMaxAt[0][1],actionMaxAt[0][2],actionMaxAt[0][3]])
+    actionMaxAt = maximax(playerList= playerList,modifiedQtable= modifiedQtable,actionMaxAt= actionMaxAt,currentDepth= currentDepth,maxDepth= maxDepth,coinPositions= state)  # Returns a list of index values where that player has max Q value for that action
+    # print(modifiedQtable[0,0,actionMaxAt[0][0],actionMaxAt[0][1],actionMaxAt[0][2],actionMaxAt[0][3]])
