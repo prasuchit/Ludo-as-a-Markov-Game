@@ -1,9 +1,14 @@
+import h5py
 import graphics
 import random
+import os.path
+from os import path
 import numpy as np
 import optimalAction
 from time import sleep
 from tkinter import Button, Label, PhotoImage, simpledialog
+import pandas as pd
+import time
 
 c = 0                              #initializing variable and flags that are to be used in the game
 cx = 0
@@ -42,7 +47,7 @@ policies = [] #The policies! (Not needed?)
 gamma = 0.5 #The discount value is quite low because the game is so unpredictable, so immediate reward takes priority.
 alpha = 1 #The learning rate, which decays as the agent explores.
 decay = .9999954 #The decay rate, which determines how long the agent learns.
-learn = True #Whether or not the agent is supposed to learn. Change to false when the agent is done learning.
+learn = False #Whether or not the agent is supposed to learn. Change to false when the agent is done learning.
 nextGame = False #Determines whether or not to loop into the next game if the current game finishes.
                 #True if learning overnight / gathering data of games. False if troubleshooting or playing with humans (or demonstrating?).
 
@@ -64,8 +69,8 @@ GENERIC = 6
 
 root = graphics.root
 root.lift()
-root.attributes('-topmost',True)
-root.attributes('-fullscreen',True)
+# root.attributes('-topmost',True)
+# root.attributes('-fullscreen',True)
 root.after_idle(root.attributes,'-topmost',False)
 # Creating a photoimage object to use image 
 dice = PhotoImage(file = r"dice.gif") 
@@ -79,7 +84,7 @@ sides = [PhotoImage(file = r"die1.gif"),
          PhotoImage(file = r"die6.gif")]
 
 #Number of games to be played.
-GAME_COUNT = 100 #Adjust as needed!
+GAME_COUNT = 1 #Adjust as needed!
 games_played = 0 #Number of games that have been played.
 
 #Prints the given player's turn.
@@ -105,18 +110,29 @@ def makeQTable(qFile):
     #The number of players: 4.
     #The number of states: 2401 (the configuration of features).
     #The actions available for each player: 4 pieces, 6 actions each (for each die roll) = 24 actions... and 4 players.
-    qTable = np.zeros((4, 2401, 24, 24, 24, 24), dtype=float)
     
     if (qFile): #If there is a q file here, populate the q table with those values.
-        f = open(qFile, 'rb')
-        qTable = np.load(f)
-        f.close()
+        print("Loading Q table.")
+        start = time.time()
+        with h5py.File(qFile, 'r') as hf:
+            qTable = hf['qSet'][:]
+        elapsed = time.time() - start
+        print(f"Loaded Q table in {elapsed} seconds.")
+        # df = pd.read_csv(qFile)
+        # qTable = df.values
+
+        # f = open(qFile, 'rb')
+        # qTable = np.reshape((np.load(f)), (4, 2401, 24, 24, 24, 24))
+        # # qTable = np.reshape(qTable, (4, 2401, 24, 24, 24, 24))
+        # f.close()
+    else:
+        qTable = np.zeros((4, 2401, 24, 24, 24, 24), dtype=float)
 
 #Make the policy and populate it only if learning is false (thus it can be referenced for all decision making).        
 def makePolicy(pFile):
     global policies
-    policies = np.zeros((2401, 6), dtype=int)
-    if not learn:
+    # policies = np.zeros((2401, 6), dtype=int)
+    if pFile:
         f = open(pFile, 'rb')
         policies = np.load(f)
         f.close()
@@ -135,20 +151,19 @@ def makeBoard():
     if games_played == 0:
         # humans = simpledialog.askinteger("Input", "How many humans are participating?", parent=root, minvalue=0, maxvalue=4)
         humans = 0  # Test input, comment out later
-        randoms = 0 #Scopes are going to be the death of me.
+        randoms = 0
         rationals = 0
         #If there are any computers participating, the user is asked how many of those computers are to be random players.
-        if humans < 4:
+        if humans < 4:  
             # randoms = simpledialog.askinteger("Input", "Of the computers, how many do you want to play randomly?", 
             #                                  parent=root, minvalue=0, maxvalue=(4 - humans))
-            randoms = 0 # Test input, comment out later
+            randoms = 2 # Test input, comment out later
             rationals = 4 - humans - randoms
             
             #Need to pull in the q table if there are any rational agents.
             if rationals > 0:
-                #TODO Change to the location of the q table file when it's been made!
-                qTable = makeQTable(None)
-                policies = makePolicy(None)
+                # qTable = makeQTable('qTable.h5' if path.exists('qTable.h5') else None) #Probably don't need this if we're done learning 'qTable.csv'
+                policies = makePolicy('policies.npy')
                 # print("Done.")
             
         #With the split of players decided, they are now distributed to the playertypes list.
@@ -158,7 +173,7 @@ def makeBoard():
             playerTypes.append(RANDOM)
         for _ in range(rationals):
             playerTypes.append(RATIONAL)
-        #As a stretch goal, we could randomly shuffle these player types around, but it shouldn't matter much.
+        print(playerTypes)
     
     #Last thing to do is decide who goes first.
     whose = random.randint(0,3)
@@ -171,49 +186,72 @@ def makeBoard():
     clear()
     
 def main():                                 # Main game function.
-    global box, cboxes, homes, players, playerTypes, whose
+    global box, cboxes, homes, players, playerTypes, whose, games_played
     if c == 0:                              #constructs the game pieces first time the code is ran.
-        makeBoard()   
+        makeBoard()
 
-    elif not done:
-        #What turn we take depends on the type of player at hand.
-        #The non-human players can go automatically.
-        aTurns()
-        #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
-        if not done:
-            playTurn()
-        elif learn and (RATIONAL in playerTypes): #A qTable only exists if there is a rational agent, but if the game is done, save the policy and q values.
-            #First save the qTable...
-            f = open('qTable.npy', 'wb')
-            np.save(f, qTable)
-            f.close()
-            #... now the policy.
-            f = open('policies.npy', 'wb')
-            np.save(f, policies)
-            f.close()
-            #Also, if we're repeating the games and the threshold hasn't been reached, go at it again!
-            if (learn and alpha >= .1) or (games_played < GAME_COUNT):
-                makeBoard()
-            #But if the games are done, report on the results.
-            else:
-                typeNames = []
-                for i in range(len(playerTypes)):
-                    typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Gross.
-                # print(f"Types: {typeNames}")
-                # print(f"Results: {winners}")
-            
     else:
-        #If we're learning, the criteria for doing another game is if the learning rate is still above a certain threshold (.1 by default).
-        #If we're not learning, then we just go to the desired threshold of games.
-        if (learn and alpha >= .1) or (games_played < GAME_COUNT):
-            makeBoard()
-        #And otherwise, let's show the results.
-        else:
-            typeNames = []
-            for i in range(len(playerTypes)):
-                typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Still gross!
-            # print(f"Types: {typeNames}")
-            # print(f"Results: {winners}")
+        while games_played < GAME_COUNT:
+            aTurns()
+            if games_played < GAME_COUNT:
+                makeBoard()
+
+        typeNames = []
+        for i in range(len(playerTypes)):
+            typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Still gross!
+        print(f"Types: {typeNames}")
+        print(f"Results: {winners}")
+
+    # elif not done:
+    #     #What turn we take depends on the type of player at hand.
+    #     #The non-human players can go automatically.
+    #     aTurns()
+    #     #With the AI turns out of the way (and they'll always be next to each other), the human(s) take their turns.
+    #     if not done:
+    #         playTurn()
+    #     elif learn and (RATIONAL in playerTypes): #A qTable only exists if there is a rational agent, but if the game is done, save the policy and q values.
+    #         #First save the qTable...
+    #         print(f"Games played: {games_played}")
+    #         if (games_played % 10) == 0:
+    #             print("Game finished; writing to file.")
+    #             start = time.time()
+    #             with h5py.File('qTable.h5', 'w') as hf:
+    #                 hf.create_dataset("qSet",  data=qTable)
+    #             elapsed = time.time() - start
+    #             print(f"Finished writing in {elapsed}.")
+    #         # df = pd.DataFrame(qTable)
+    #         # df.to_csv('qTable.csv',index=False)
+    #         # f = open('qTable.npy', 'wb')
+    #         # np.save(f, qTable)
+    #         # f.close()
+    #         #... now the policy.
+    #         f = open('policies.npy', 'wb')
+    #         np.save(f, policies)
+    #         f.close()
+    #         #Also, if we're repeating the games and the threshold hasn't been reached, go at it again!
+    #         if (learn and alpha >= .1) or (games_played < GAME_COUNT):
+    #             makeBoard()
+    #             main()
+    #         #But if the games are done, report on the results.
+    #         else:
+    #             typeNames = []
+    #             for i in range(len(playerTypes)):
+    #                 typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Gross.
+    #             print(f"Types: {typeNames}")
+    #             print(f"Results: {winners}")
+        
+    #     #If we're learning, the criteria for doing another game is if the learning rate is still above a certain threshold (.1 by default).
+    #     #If we're not learning, then we just go to the desired threshold of games.
+    #     if (learn and alpha >= .1) or (games_played < GAME_COUNT):
+    #         games_played += 1
+    #         makeBoard()
+    #     #And otherwise, let's show the results.
+    #     else:
+    #         typeNames = []
+    #         for i in range(len(playerTypes)):
+    #             typeNames.append("Human" if playerTypes[i] == 0 else ("Random" if playerTypes[i] == 1 else "Rational")) #Still gross!
+    #         # print(f"Types: {typeNames}")
+    #         # print(f"Results: {winners}")
         
 
 main()    #Main function is called once when c==0 to initialize all the gamepieces.
@@ -688,13 +726,28 @@ def getNewPos(playerPieces, player, piece, roll):
         # print("Player: ", player, " piece: ", piece, " Player pieces: ", playerPieces[player])
         # print("Actual player: ", [players[player][i].num for i in players[player][i].num])
         #First save the qTable...
-        f = open('qTable.npy', 'wb')
-        np.save(f, qTable)
-        f.close()
+        global games_played
+        games_played += 1
+        print(f"Games played: {games_played}")
+        if (games_played % 10) == 0:
+            print("Exception encountered; writing to file.")
+            start = time.time()
+            with h5py.File('qTable.h5', 'w') as hf:
+                hf.create_dataset("qSet",  data=qTable)
+            elapsed = time.time() - start
+            print(f"Finished writing in {elapsed} seconds.")
+        # df = pd.DataFrame(qTable)
+        # df.to_csv('qTable.csv',index=False)
+        # f = open('qTable.npy', 'wb')
+        # np.save(f, qTable)
+        # f.close()
         #... now the policy.
         f = open('policies.npy', 'wb')
         np.save(f, policies)
         f.close()
+        if (alpha >= .1):
+            makeBoard()
+            main()
     if spot == -1:
         return 0
     else:
@@ -738,7 +791,7 @@ def getReward(state, player, action, roll):
             if dest == state[last][i]:
                 canKill = True    
         if canKill:
-            return .5    
+            return 1    
         else:
             #if the piece can make a double,
             for i in range(len(state[player])):
@@ -752,7 +805,7 @@ def getReward(state, player, action, roll):
             if dest == 0:
                 return -0.01
             else: #or if not, the piece is just moving.
-                return -0.05
+                return -0.1
 
 #Get the valid moves from a given state.
 def getValidMovesFromState(state, player, roll):
